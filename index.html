@@ -338,7 +338,7 @@ var TS={comp:null,ans:[]};
 function treeMatch(e){var total=0,matched=0;TS.ans.forEach(function(a){if(!a.tags.length)return;total++;if(a.tags.some(function(t){return e.gammes.indexOf(t)>=0;}))matched++;});return {matched:matched,total:total};}
 function treeGroups(){if(!TS.comp)return{strong:[],partial:[]};var base=ENT.filter(function(e){return e.compartiment==TS.comp;});var strong=[],partial=[];base.forEach(function(e){var m=treeMatch(e);if(m.total===0||m.matched===m.total)strong.push(e);else if(m.matched===m.total-1&&m.total>=2)partial.push(e);});return{strong:strong,partial:partial};}
 function shortQ(q){return q.replace(' ?','');}
-function renderTree(){var box=document.getElementById('tree');if(!box)return;var multi=DOM.comps.length>1;var html='<div class="ftree">';
+function renderTree(){var box=document.getElementById('tree');if(!box)return;var multi=DOM.comps.length>1;var html='<div class="ftree">'+((TS.comp&&TS.ans.length)?'<div style="text-align:right;margin:0 0 6px"><button class="topt skip" onclick="treeReset()">↺ Recommencer</button></div>':'');
  if(!TS.comp){html+='<div class="fnode active"><div class="fq">Quel compartiment ?</div><div class="fopts">'+DOM.comps.map(function(c){return '<button class="topt" onclick="treeComp(\''+c[0]+'\')">'+(c[1]||c[0])+'</button>';}).join('')+'</div></div></div>';box.innerHTML=html;return;}
  if(multi)html+='<div class="fnode chosen">Compartiment : <b>'+(COMPLABEL[TS.comp]||TS.comp)+'</b><span class="fedit" onclick="treeBack(0)">modifier</span></div>';
  var axes=AXES[TS.comp]||[];
@@ -385,7 +385,9 @@ var TUMO_AXES={
   {q:"Est-elle agressive ?",all:["agressif","mite","permeatif","bord_flou","geographique","bord_net_sclerose","bord_net_non_sclerose"],opts:[["Non agressive (bord net, transition étroite)",["geographique","bord_net_sclerose","bord_net_non_sclerose"]],["Agressive (mité/perméatif, périoste interrompu)",["agressif","mite","permeatif","bord_flou"]]]},
   {q:"Matrice ?",all:["matrice_osteoide","matrice_chondroide","matrice_fibreuse_verre_depoli","sans_matrice"],opts:[["Ostéoïde",["matrice_osteoide"]],["Chondroïde",["matrice_chondroide"]],["Fibreuse / verre dépoli",["matrice_fibreuse_verre_depoli"]],["Pas de matrice visible",["sans_matrice"]]]},
   {q:"Topographie (sens long) ?",all:["epiphysaire","metaphysaire","diaphysaire","axial"],opts:[["Épiphyse",["epiphysaire"]],["Métaphyse",["metaphysaire"]],["Diaphyse",["diaphysaire"]],["Axial / os plat",["axial"]]]},
-  {q:"Âge du patient ?",all:["age_enfant","age_jeune","age_mur"],opts:[["Enfant / ado (<20)",["age_enfant"]],["Adulte jeune (20-40)",["age_jeune"]],["> 40 ans",["age_mur"]]]}
+  {q:"Âge du patient ?",all:["age_enfant","age_jeune","age_mur"],opts:[["Enfant / ado (<20)",["age_enfant"]],["Adulte jeune (20-40)",["age_jeune"]],["> 40 ans",["age_mur"]]]},
+  {q:"Topographie en coupe (IN / OUT) ?",all:["central","medullaire","cortical","excentre","juxtacortical","surface","intra_articulaire"],opts:[["Central / médullaire",["central","medullaire"]],["Cortical / excentré",["cortical","excentre"]],["Surface / juxtacortical",["surface","juxtacortical"]],["Intra-articulaire",["intra_articulaire"]]]},
+  {q:"Niveaux liquide-liquide (IRM/TDM) ?",all:["niveaux_liquide_liquide"],opts:[["Présents",["niveaux_liquide_liquide"]]]}
  ],
  parties_molles:[
   {q:"Plan de la lésion ?",all:["plan_sous_cutane","plan_intramusculaire","plan_peri_nerveux","plan_juxta_articulaire","plan_profond","plan_dermique"],opts:[["Sous-cutané",["plan_sous_cutane"]],["Intramusculaire / profond",["plan_intramusculaire","plan_profond"]],["Péri-nerveux",["plan_peri_nerveux"]],["Juxta-articulaire",["plan_juxta_articulaire"]]]},
@@ -485,7 +487,7 @@ function _gcur(){var node=GTREE,terms=[],pres=null;GTS.forEach(function(s){terms
 function gpick(i){var cur=_gcur();if(!cur.node||!cur.node.opts)return;var o=cur.node.opts[i];GTS.push({label:o.l,terms:o.t||[],node:o.sub||null,pres:o.pres||null});gtreeRender();}
 function gback(i){GTS=GTS.slice(0,i);gtreeRender();}
 function greset(){GTS=[];gtreeRender();}
-function gtreeRender(){var box=document.getElementById('gtree');if(!box)return;var cur=_gcur();var s='<div class="ftree">';
+function gtreeRender(){var box=document.getElementById('gtree');if(!box)return;var cur=_gcur();var s='<div class="ftree">'+(GTS.length?'<div style="text-align:right;margin:0 0 6px"><button class="topt skip" onclick="greset()">↺ Recommencer</button></div>':'');
  GTS.forEach(function(st,k){s+='<div class="fnode chosen">'+st.label+'<span class="fedit" onclick="gback('+k+')">modifier</span></div><div class="fconn"></div>';});
  var node=cur.node;
  if(node&&node.opts){s+='<div class="fnode active"><div class="fq">'+node.q+'</div><div class="fopts">'+node.opts.map(function(o,i){return '<button class="topt" onclick="gpick('+i+')">'+o.l+'</button>';}).join('')+'</div></div>';}
