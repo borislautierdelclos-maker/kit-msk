@@ -1,0 +1,47 @@
+<!doctype html><meta charset="utf8"><body style="font-family:system-ui;background:#fff;padding:16px">
+<style>.sch svg.jhand{height:300px;width:auto;display:block;margin:0 auto} .row{display:flex;gap:30px;align-items:flex-start}</style>
+<div class="row">
+<div class="sch"><div id="hand"></div><div style="text-align:center;font-size:11px;color:#888">MAIN (PR : MCP+IPP, IPD épargnées)</div></div>
+<div class="sch"><div id="foot"></div><div style="text-align:center;font-size:11px;color:#888">PIED (goutte : MTP1)</div></div>
+</div>
+<script>
+var BONE="#eef2f2",EDGE="#aeb9ba";
+function _grad(id){return '<defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f5f6"/><stop offset="1" stop-color="#e4ebec"/></linearGradient></defs>';}
+function _dot(x,y,lv,r){r=r||5.4;if(lv===''){return '<circle cx="'+x+'" cy="'+y+'" r="3.2" fill="#fff" stroke="#cdd6d7" stroke-width="1.2"/>';}var fill={p:'#0f7a70',s:'#ffffff',e:'#ffffff'}[lv],st={p:'#0b5a53',s:'#0f7a70',e:'#c0392b'}[lv];return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+fill+'" stroke="'+st+'" stroke-width="'+(lv=='p'?1.4:2.3)+'"/>';}
+function _st(l){return l=='p'?' — atteinte fréquente':(l=='s'?' — atteinte possible':(l=='e'?' — épargné':''));}
+function f(n){return (+n).toFixed(1);}
+function boneO(x1,y1,x2,y2,ws,r1,r2){var dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy)||1,ax=dx/L,ay=dy/L,nx=-ay,ny=ax,mx=(x1+x2)/2,my=(y1+y2)/2;function p(a,b){return f(a)+' '+f(b);}var L1=[x1+nx*r1,y1+ny*r1],L2=[x2+nx*r2,y2+ny*r2],R1=[x1-nx*r1,y1-ny*r1],R2=[x2-nx*r2,y2-ny*r2],Lm=[mx+nx*ws,my+ny*ws],Rm=[mx-nx*ws,my-ny*ws],cT=[x1-ax*r1*1.2,y1-ay*r1*1.2],cB=[x2+ax*r2*1.2,y2+ay*r2*1.2];return '<path d="M'+p(L1[0],L1[1])+' Q'+p(Lm[0],Lm[1])+' '+p(L2[0],L2[1])+' Q'+p(cB[0],cB[1])+' '+p(R2[0],R2[1])+' Q'+p(Rm[0],Rm[1])+' '+p(R1[0],R1[1])+' Q'+p(cT[0],cT[1])+' '+p(L1[0],L1[1])+' Z" fill="'+BONE+'" stroke="'+EDGE+'" stroke-width="1.25" stroke-linejoin="round"/>';}
+function _cond(x,y,ang,w,h){return '<ellipse cx="'+x+'" cy="'+y+'" rx="'+w+'" ry="'+h+'" transform="rotate('+f(ang)+' '+x+' '+y+')" fill="'+BONE+'" stroke="'+EDGE+'" stroke-width="1.1"/>';}
+function _carp(cx,cy,r,rot){var pts=[[.95,0],[.5,.78],[-.6,.72],[-.98,.05],[-.55,-.78],[.62,-.82]],d='';pts.forEach(function(pp,i){var a=(rot||0)*Math.PI/180,X=cx+r*(pp[0]*Math.cos(a)-pp[1]*Math.sin(a)),Y=cy+r*(pp[0]*Math.sin(a)+pp[1]*Math.cos(a));d+=(i?' L':'M')+f(X)+' '+f(Y);});return '<path d="'+d+' Z" fill="'+BONE+'" stroke="'+EDGE+'" stroke-width="1.15" stroke-linejoin="round"/>';}
+function ang(x1,y1,x2,y2){return Math.atan2(y2-y1,x2-x1)*180/Math.PI;}
+
+function _handG(J,L,ox){var dip=L('ip_distales'),pip=L('ip_proximales'),mcp=L('mcp'),wr=(L('poignet')||L('carpe')),tmc=L('trapezometacarpien'),stz=L('scapho_trapezien');var B='',N='';
+ function nd(x,y,lv,lab){return '<g class="jhit" data-tip="'+lab+_st(lv)+'">'+_dot(ox+x,y,lv,4.8)+'</g>';}
+ B+=boneO(ox+110,368,ox+116,326,9,11,8)+'<path d="M'+(ox+105)+' 330 Q'+(ox+100)+' 322 '+(ox+108)+' 320 L'+(ox+112)+' 330 Z" fill="'+BONE+'" stroke="'+EDGE+'"/>'+boneO(ox+148,368,ox+142,330,7.5,9,7);
+ [[112,312,8,-8],[126,314,8,4],[140,312,8,14],[152,306,7,26],[116,297,7,-4],[130,298,8,6],[144,295,7.5,14],[155,291,6.5,24]].forEach(function(c){B+=_carp(ox+c[0],c[1],c[2],c[3]);});
+ var MC=[[118,289,92,214],[130,288,120,207],[142,288,147,212],[151,285,173,221]],TIP=[64,44,60,96];
+ MC.forEach(function(m,i){var hx=m[2],hy=m[3],aa=ang(m[0],m[1],hx,hy);B+=boneO(ox+m[0],m[1],ox+hx,hy,3.8,5,5.4)+_cond(ox+hx,hy,aa,6,4);var tot=hy-TIP[i],y1=hy-tot*.42,y2=y1-tot*.32;B+=boneO(ox+hx,hy,ox+hx,y1,3.6,4.6,4.2)+_cond(ox+hx,y1,90,5,3.4)+boneO(ox+hx,y1,ox+hx,y2,3.1,4,3.6)+_cond(ox+hx,y2,90,4.3,3)+boneO(ox+hx,y2,ox+hx,TIP[i],2.6,3.2,1.6);N+=nd(hx,hy,mcp,'MCP')+nd(hx,y1,pip,'IP proximale (IPP)')+nd(hx,y2,dip,'IP distale (IPD)');});
+ B+=boneO(ox+120,298,ox+76,252,4.2,5.4,5)+boneO(ox+76,252,ox+50,216,3.8,4.4,4)+boneO(ox+50,216,ox+32,190,2.8,3.4,1.6);
+ N+=nd(120,298,tmc,'Trapézo-métacarpienne (TMC)')+nd(50,216,stz,'Scapho-trapézienne')+nd(128,312,wr,'Poignet / carpe');
+ if((J.primaires||[]).indexOf('mcp_radial_23')>=0){B+='<circle cx="'+(ox+MC[0][2]-6)+'" cy="'+MC[0][3]+'" r="2.6" fill="#c0392b"/><circle cx="'+(ox+MC[1][2]-6)+'" cy="'+MC[1][3]+'" r="2.6" fill="#c0392b"/>';}
+ var LB='<g font-size="10" fill="#8a94a2" font-family="system-ui" text-anchor="start"><text x="'+(ox+188)+'" y="68">IPD</text><text x="'+(ox+188)+'" y="116">IPP</text><text x="'+(ox+188)+'" y="176">MCP</text><text x="'+(ox+150)+'" y="340">poignet</text></g>';
+ return B+N+LB;}
+
+function _footG(J,L,ox){var mtp=L('mtp'),mtp1=(L('mtp1')||L('mtp')),ta=L('tarse'),he=L('talon_enthese');var B='',N='';
+ function nd(x,y,lv,lab){return '<g class="jhit" data-tip="'+lab+_st(lv)+'">'+_dot(ox+x,y,lv,4.8)+'</g>';}
+ B+=boneO(ox+120,20,ox+120,50,10,9,12)+boneO(ox+146,26,ox+144,52,7,6,8);
+ B+='<path d="M'+(ox+108)+' 60 Q'+(ox+104)+' 74 '+(ox+112)+' 86 Q'+(ox+124)+' 92 '+(ox+134)+' 84 Q'+(ox+140)+' 72 '+(ox+132)+' 60 Q'+(ox+120)+' 52 '+(ox+108)+' 60 Z" fill="'+BONE+'" stroke="'+EDGE+'"/>';
+ B+='<path d="M'+(ox+140)+' 52 Q'+(ox+168)+' 54 '+(ox+170)+' 74 Q'+(ox+172)+' 96 '+(ox+150)+' 100 Q'+(ox+136)+' 98 '+(ox+136)+' 82 Q'+(ox+134)+' 64 '+(ox+140)+' 52 Z" fill="'+BONE+'" stroke="'+EDGE+'"/>';
+ B+=_carp(ox+114,104,10,0)+_carp(ox+150,104,9,20)+_carp(ox+102,120,7,0)+_carp(ox+116,122,7,6)+_carp(ox+130,120,7,12);
+ var MT=[[102,126,90,208],[116,128,116,214],[129,126,140,210],[141,124,159,202],[150,118,178,192]],TTIP=[266,272,268,258,246];
+ MT.forEach(function(m,i){var hx=m[2],hy=m[3],aa=ang(m[0],m[1],hx,hy);B+=boneO(ox+m[0],m[1],ox+hx,hy,3.7,4.6,5.2)+_cond(ox+hx,hy,aa,5.6,3.8);if(i===0){var y1=hy+22;B+=boneO(ox+hx,hy,ox+hx,y1,4,4.4,4)+boneO(ox+hx,y1,ox+hx,TTIP[i],3,3.4,1.6);N+=nd(hx,hy,mtp1,'MTP1 (gros orteil)')+nd(hx,y1,L('mtp1'),'IP hallux');}else{var a=hy+15,b=a+10;B+=boneO(ox+hx,hy,ox+hx,a,3,3.6,3.2)+boneO(ox+hx,a,ox+hx,b,2.5,3,2.6)+boneO(ox+hx,b,ox+hx,TTIP[i],2,2.4,1.3);N+=nd(hx,hy,mtp,'MTP — orteil '+(i+1));}});
+ N+=nd(120,112,ta,'Tarse / médio-pied')+nd(160,88,he,'Talon (enthèse calcanéenne)');
+ var LB='<g font-size="10" fill="#8a94a2" font-family="system-ui" text-anchor="middle"><text x="'+(ox+118)+'" y="240">MTP</text><text x="'+(ox+92)+'" y="120">tarse</text><text x="'+(ox+184)+'" y="90">talon</text></g>';
+ return B+N+LB;}
+
+function handSvg(prim,sec){function L(k){return prim.indexOf(k)>=0?'p':(sec.indexOf(k)>=0?'s':'');}var J={primaires:prim,secondaires:sec};return '<svg class="jsvg jhand" viewBox="0 0 250 382">'+_grad('gb')+_handG(J,L,0)+'</svg>';}
+function footSvg(prim,sec){function L(k){return prim.indexOf(k)>=0?'p':(sec.indexOf(k)>=0?'s':'');}var J={primaires:prim,secondaires:sec};return '<svg class="jsvg jhand" viewBox="0 0 220 300">'+_grad('gb')+_footG(J,L,0)+'</svg>';}
+
+document.getElementById('hand').innerHTML=handSvg(['mcp','ip_proximales','poignet'],['scapho_trapezien']);
+document.getElementById('foot').innerHTML=footSvg(['mtp1'],[]);
+</script></body>
