@@ -463,7 +463,7 @@ var GTREE={q:"Qu'est-ce qui domine l'image ?",opts:[
      {l:"Non agressive (bord net, transition étroite)",t:["geographique"],sub:{q:"Âge ?",opts:[{l:"< 20 ans",t:["enfant"],sub:{q:"Topographie (sens long) ?",opts:[{l:"Épiphyse",t:["epiphysaire"]},{l:"Métaphyse",t:["metaphysaire"]},{l:"Diaphyse",t:["diaphysaire"]},{l:"Os plat / axial",t:["axial"]}]}},{l:"20-40 ans",t:["jeune"],sub:{q:"Topographie (sens long) ?",opts:[{l:"Épiphyse",t:["epiphysaire"]},{l:"Métaphyse",t:["metaphysaire"]},{l:"Diaphyse",t:["diaphysaire"]},{l:"Os plat / axial",t:["axial"]}]}},{l:"> 40 ans",t:["mur"],sub:{q:"Topographie (sens long) ?",opts:[{l:"Épiphyse",t:["epiphysaire"]},{l:"Métaphyse",t:["metaphysaire"]},{l:"Diaphyse",t:["diaphysaire"]},{l:"Os plat / axial",t:["axial"]}]}}]}},
      {l:"Agressive (mitée/perméative, périoste interrompu)",t:["agressif"],sub:{q:"Âge ?",opts:[{l:"Enfant/ado",t:["enfant"],sub:{q:"Topographie (sens long) ?",opts:[{l:"Épiphyse",t:["epiphysaire"]},{l:"Métaphyse",t:["metaphysaire"]},{l:"Diaphyse",t:["diaphysaire"]},{l:"Os plat / axial",t:["axial"]}]}},{l:"> 40 ans (métastase/myélome ?)",t:["metastase myelome mur"],sub:{q:"Topographie (sens long) ?",opts:[{l:"Épiphyse",t:["epiphysaire"]},{l:"Métaphyse",t:["metaphysaire"]},{l:"Diaphyse",t:["diaphysaire"]},{l:"Os plat / axial",t:["axial"]}]}}]}}]}},
    {l:"Condensante (dense)",t:["condensant"],sub:{q:"Une ou plusieurs ?",opts:[{l:"Unique",t:["unique"]},{l:"Multiples / diffuses",t:["multiple diffus"]}]}},
-   {l:"Matrice visible",t:[],sub:{q:"Type de matrice ?",opts:[{l:"Ostéoïde (nuageuse)",t:["osteoide"]},{l:"Chondroïde (anneaux/arcs)",t:["chondroide anneaux"]},{l:"Fibreuse / verre dépoli",t:["verre depoli"]}]}}]}},
+   {l:"Matrice visible",t:[],sub:{q:"Type de matrice ?",opts:[{l:"Ostéoïde (nuageuse)",t:["osteoide"]},{l:"Chondroïde (anneaux/arcs)",t:["chondroide anneaux"],sub:{q:"Siège / agressivité ?",opts:[{l:"Mains / pieds, non agressif",t:["mains pieds enchondrome"]},{l:"Os long central, scalloping / douleur",t:["chondrosarcome central scalloping"]},{l:"Épiphyse, sujet jeune",t:["epiphysaire chondroblastome jeune"]}]}},{l:"Fibreuse / verre dépoli",t:["verre depoli"]}]}}]}},
  {l:"Atteinte articulaire (érosions, pincement, épanchement)",pres:"articulaire",t:[],sub:{q:"Nombre d'articulations ?",opts:[
    {l:"Mono-articulaire",t:["monoarticulaire"],sub:{q:"Contexte ?",opts:[{l:"Fébrile / aigu (septique ?)",t:["septique aigu"]},{l:"Dépôt cristallin",t:["microcristallin"]}]}},
    {l:"Oligo / poly-articulaire",t:["polyarticulaire"],sub:{q:"Type d'atteinte ?",opts:[
@@ -476,12 +476,15 @@ var GTREE={q:"Qu'est-ce qui domine l'image ?",opts:[
      {l:"Résorption sous-périostée (mains)",t:["resorption sous periostee hyperparathyroidie"]},
      {l:"Stries de Looser",t:["looser"]},
      {l:"Lésions à l'emporte-pièce (crâne)",t:["emporte piece myelome"]}]}}]}},
- {l:"Masse ou calcifications des parties molles",pres:"parties_molles",t:[],sub:{q:"Contenu / signe dominant ?",opts:[
-   {l:"Graisse (T1)",t:["graisse"]},
-   {l:"Kystique (T2 franc)",t:["kystique"]},
-   {l:"Vasculaire (phlébolithes / flow-voids)",t:["phlebolithe flow void"]},
+ {l:"Masse ou calcifications des parties molles",pres:"parties_molles",t:[],sub:{q:"Signal / contenu dominant (IRM) ?",opts:[
+   {l:"Graisse (hyperT1, chute en fat-sat)",t:["graisse"],sub:{q:"Aspect ?",opts:[{l:"Purement graisseux homogène",t:["lipome graisse"]},{l:"Cloisons épaisses / composante charnue",t:["cloisons composante charnue liposarcome"]}]}},
+   {l:"Kystique / pseudokystique (hyperT2 franc)",t:["kystique pseudokystique"],sub:{q:"Siège ?",opts:[{l:"Juxta-articulaire",t:["juxta_articulaire kyste"]},{l:"Intramusculaire",t:["intramusculaire"]},{l:"Sous-cutané",t:["sous_cutane"]}]}},
+   {l:"Fibreux (hyposignal T2)",t:["signal_fibreux_hypoT2 fibreux"]},
+   {l:"Hémosidérine / blooming (dépôts)",t:["hemosiderine_blooming hemosiderine blooming"]},
+   {l:"Vasculaire (flow-voids / phlébolithes)",t:["flow_voids_vasculaire phlebolithe flow void"]},
+   {l:"Rehaussement périphérique / annulaire (nécrose, abcès)",t:["rehaussement_peripherique annulaire abces"]},
    {l:"Calcif. en grain de riz (intramusculaire)",t:["grain riz intramuscul"]},
-   {l:"Calcification zonée périphérique",t:["zonation ossifiante peripherique"]}]}},
+   {l:"Calcification zonée périphérique (myosite ossifiante)",t:["zonation ossifiante peripherique"]}]}},
  {l:"Atteinte mécanique / dégénérative / traumatique",pres:"mecanique",t:[],sub:{q:"Région ?",opts:[
    {l:"Épaule",t:["epaule"]},{l:"Genou",t:["genou"]},{l:"Hanche",t:["hanche"]},{l:"Rachis",t:["rachis degeneratif"]},{l:"Cheville / pied",t:["cheville"]},{l:"Poignet / main",t:["poignet"]}]}},
  {l:"Atteinte périostée / enthésique",t:["periost"],sub:{q:"Distribution ?",opts:[
