@@ -572,18 +572,18 @@ var GSIG={q:"Signe IRM / TDM particulier ?",opts:[{l:"Niveaux liquide-liquide",t
  {l:"Atteinte osseuse diffuse / multifocale (densité globale anormale)",pres:"osseuse_diffuse",t:[],sub:{q:"Densité globale ?",opts:[
    {l:"Os dense / condensant",t:["condensation"],sub:{q:"Indice ?",opts:[{l:"Axial (rugger-jersey, sandwich)",t:["axial","rachis"]},{l:"Diffus symétrique",t:["symetrique"]}]}},
    {l:"Déminéralisé / lytique multifocal",t:["demineralisation"],sub:{q:"Signe qui recadre ?",opts:[
-     {l:"Résorption sous-périostée (mains)",t:["resorption","sous","periostee","hyperparathyroidie"]},
+     {l:"Résorption sous-périostée (mains)",t:["resorption_sous_periostee"]},
      {l:"Stries de Looser",t:["looser"]},
      {l:"Lésions à l'emporte-pièce (crâne)",t:["emporte","piece","myelome"]}]}}]}},
  {l:"Masse ou calcifications des parties molles",pres:"parties_molles",t:[],sub:{q:"Signal / contenu dominant (IRM) ?",opts:[
    {l:"Graisse (hyperT1, chute en fat-sat)",t:["graisse"],sub:{q:"Aspect ?",opts:[{l:"Purement graisseux homogène",t:["lipome","graisse"]},{l:"Cloisons épaisses / composante charnue",t:["cloisons","composante","charnue","liposarcome"]}]}},
-   {l:"Kystique / pseudokystique (hyperT2 franc)",t:["kystique","pseudokystique"],sub:{q:"Siège ?",opts:[{l:"Juxta-articulaire",t:["juxta_articulaire","kyste"]},{l:"Intramusculaire",t:["intramusculaire"]},{l:"Sous-cutané",t:["sous_cutane"]}]}},
+   {l:"Kystique / pseudokystique (hyperT2 franc)",t:["kystique","pseudokystique"],sub:{q:"Siège ?",opts:[{l:"Juxta-articulaire",t:["juxta_articulaire"]},{l:"Intramusculaire",t:["intramusculaire"]},{l:"Sous-cutané",t:["sous_cutane"]}]}},
    {l:"Fibreux (hyposignal T2)",t:["signal_fibreux_hypoT2"]},
    {l:"Hémosidérine / blooming (dépôts)",t:["hemosiderine_blooming"]},
    {l:"Vasculaire (flow-voids / phlébolithes)",t:["flow_voids_vasculaire","phlebolithe"]},
    {l:"Rehaussement périphérique / annulaire (nécrose, abcès)",t:["rehaussement_peripherique","annulaire","abces"]},
-   {l:"Calcif. en grain de riz (intramusculaire)",t:["grain","riz","intramuscul"]},
-   {l:"Calcification zonée périphérique (myosite ossifiante)",t:["zonation","ossifiante","peripherique"]}]}},
+   {l:"Calcif. en grain de riz (intramusculaire)",t:["grain","riz"]},
+   {l:"Calcification zonée périphérique (myosite ossifiante)",t:["zonation","ossifiante"]}]}},
  {l:"Atteinte mécanique / dégénérative / traumatique",pres:"mecanique",t:[],sub:{q:"Région ?",opts:[
    {l:"Épaule",t:["epaule"]},{l:"Genou",t:["genou"]},{l:"Hanche",t:["hanche"]},{l:"Rachis",t:["rachis","degeneratif"]},{l:"Cheville / pied",t:["cheville"]},{l:"Poignet / main",t:["poignet"]}]}},
  {l:"Atteinte périostée / enthésique",t:["periost"],sub:{q:"Distribution ?",opts:[
@@ -591,7 +591,7 @@ var GSIG={q:"Signe IRM / TDM particulier ?",opts:[{l:"Niveaux liquide-liquide",t
    {l:"Enthèses (spondyloarthrite ?)",t:["enthese"]},
    {l:"Focale agressive (tumeur/infection)",t:["agressif"]}]}}
 ]};
-function gmatch(pres,groups){var pool=_allEnt();if(pres)pool=pool.filter(function(c){return (c.e.pres||[]).indexOf(pres)>=0;});var gs=(groups||[]).map(function(g){return (g||[]).map(function(t){return _nrm(t).trim();}).filter(function(t){return t.length>=3;});}).filter(function(g){return g.length;});if(!gs.length)return {list:pool};var all=[];pool.forEach(function(c){var blob=" "+_blob(c.e)+" ",nm=" "+_nrm(c.e.nom)+" ",ok=0,sc=0;gs.forEach(function(toks){var matched=false,nameHit=false;toks.forEach(function(t){if(blob.indexOf(t)>=0){matched=true;if(nm.indexOf(t)>=0)nameHit=true;}});if(matched){ok++;sc+=1+(nameHit?3:0);}});all.push({c:c,ok:ok,sc:sc});});var n=gs.length;function pick(min){return all.filter(function(x){return x.ok>=min;}).sort(function(a,b){return b.ok-a.ok||b.sc-a.sc;}).map(function(x){return x.c;});}var r=pick(n);if(!r.length&&n>1)r=pick(n-1);if(!r.length)r=pick(1);return {list:r};}
+function gmatch(pres,groups){var pool=_allEnt();if(pres)pool=pool.filter(function(c){return (c.e.pres||[]).indexOf(pres)>=0;});var gs=(groups||[]).map(function(g){return (g||[]).map(function(t){return _nrm(t).trim();}).filter(function(t){return t.length>=3;});}).filter(function(g){return g.length;});if(!gs.length)return {list:pool};var all=[];pool.forEach(function(c){var blob=" "+_blob(c.e)+" ",nm=" "+_nrm(c.e.nom)+" ",ok=0,sc=0;gs.forEach(function(toks){var matched=false,nameHit=false;toks.forEach(function(t){var hit=t.length<=4?(blob.indexOf(' '+t+' ')>=0):(blob.indexOf(t)>=0);if(hit){matched=true;if(nm.indexOf(t)>=0)nameHit=true;}});if(matched){ok++;sc+=1+(nameHit?3:0);}});all.push({c:c,ok:ok,sc:sc});});var n=gs.length;function pick(min){return all.filter(function(x){return x.ok>=min;}).sort(function(a,b){return b.ok-a.ok||b.sc-a.sc;}).map(function(x){return x.c;});}var r=pick(n);if(!r.length&&n>1)r=pick(n-1);if(!r.length)r=pick(1);return {list:r};}
 var GTS=[];
 function _gcur(){var node=GTREE,groups=[],terms=[],pres=null;GTS.forEach(function(s){if(s.terms&&s.terms.length){groups.push(s.terms);terms=terms.concat(s.terms);}node=s.node;if(s.pres)pres=s.pres;});return {node:node,groups:groups,terms:terms,pres:pres};}
 function gpick(i){var cur=_gcur();if(!cur.node||!cur.node.opts)return;var o=cur.node.opts[i];GTS.push({label:o.l,terms:o.t||[],node:o.sub||null,pres:o.pres||null});gtreeRender();}
