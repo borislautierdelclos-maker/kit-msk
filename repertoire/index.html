@@ -200,6 +200,9 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
 .szb.on{background:var(--ink);color:var(--surface)}
 .fig.dragging{opacity:.35}
 .ghost{position:fixed;z-index:50;pointer-events:none;opacity:.85;box-shadow:0 8px 24px rgba(0,0,0,.25);margin:0}
+.brand .left{display:flex;align-items:center;gap:10px;min-width:0}
+.homebtn{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 10px 4px 6px;font-weight:700;font-size:.82rem;flex:none}
+#hometitle{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.88rem;z-index:30;max-width:calc(100% - 32px)}
 .offline{font-family:var(--f-mono);font-size:.66rem;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
 </style>
@@ -208,7 +211,7 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
 
 <div class="wrap">
   <header class="top">
-    <div class="brand"><h1>Répertoire des entités</h1><span class="right"><span class="offline" id="offline" hidden>hors ligne</span><span class="count" id="count"></span><button class="themebtn" id="themebtn" aria-label="Changer de thème"></button></span></div>
+    <div class="brand"><span class="left"><button class="homebtn" id="homebtn" hidden aria-label="Retour à l'accueil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accueil</button><h1 id="hometitle">Répertoire des entités</h1></span><span class="right"><span class="offline" id="offline" hidden>hors ligne</span><span class="count" id="count"></span><button class="themebtn" id="themebtn" aria-label="Changer de thème"></button></span></div>
     <div class="searchrow">
       <div class="search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -446,7 +449,7 @@ function figures(f, key, keys, secs){
 function renderFiche(){
   const f = state.fiches.find(x=>x.id===state.open);
   const main = $("#main");
-  if(!f){ state.open=null; return render(); }
+  if(!f){ if(!state.fiches.length){ main.innerHTML=`<div class="empty"><h2>Chargement…</h2></div>`; return; } state.open=null; return render(); }
   const secs = ficheSections(f), keys = secs.map(s=>s.key);
   const addHere = k => `<label class="addhere" for="imgup" data-sec="${esc(k)}">+ image ici</label>`;
   const body = secs.map(s=>{
@@ -481,7 +484,14 @@ function renderFiche(){
   hydrateImgs();
 }
 async function saveImages(f, images){ state.db.collection(COL.fiches).doc(f.id).update({images}).catch(()=>toast("Modification non enregistrée.")); }
-function render(){ renderChips(); state.open ? renderFiche() : renderList(); }
+function syncHash(){
+  const want = state.open ? "#"+encodeURIComponent(state.open) : "";
+  if((location.hash||"") !== want){ try{ history.pushState(null,"",want || (location.pathname+location.search)); }catch{} }
+  const hb=$("#homebtn"); if(hb) hb.hidden=!state.open;
+}
+function render(){ renderChips(); state.open ? renderFiche() : renderList(); syncHash(); }
+function goHome(){ state.open=null; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); }
+addEventListener("popstate", ()=>{ const h=decodeURIComponent((location.hash||"").slice(1)); state.open=h||null; state.confirmDel=false; state.rev=false; render(); window.scrollTo(0,0); });
 
 /* ---------- add sheet ---------- */
 function openSheet(prefill=""){
@@ -508,11 +518,13 @@ function enqueue(item){
 
 /* ---------- events ---------- */
 document.addEventListener("click", async e=>{
+  if(e.target.closest("#hometitle")){ goHome(); return; }
   const ah=e.target.closest("label[data-sec]"); if(ah){ state.targetSec=ah.dataset.sec; }
   if(e.target.closest("[data-lb]")){ $("#lbroot").innerHTML=""; return; }
   if(e.target.matches(".md img,[data-zoom]")){ lightbox(e.target.src); return; }
   const go = e.target.closest("[data-go]"); if(go){ state.open=go.dataset.go; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); return; }
   const t = e.target.closest("button,[data-close]"); if(!t) return;
+  if(t.id==="homebtn"){ goHome(); return; }
   if(t.id==="themebtn"){ theme = theme==="auto"?"light":theme==="light"?"dark":"auto"; try{ localStorage.setItem("theme",theme); }catch{} applyTheme(); return; }
   if(t.dataset.kind){ const nom=$("#f-nom").value, ctx=$("#f-ctx").value; state.addKind=t.dataset.kind; const keep=state.addFiles; openSheet(nom); state.addFiles=keep; $("#f-ctx").value=ctx; showThumbs(); return; }
   if(t.dataset.close!==undefined && (e.target===t || t.tagName==="BUTTON")){ closeSheet(); return; }
@@ -521,7 +533,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.s!==undefined){ state.filter = t.dataset.s||null; state.fam=null; state.open=null; render(); return; }
   if(t.dataset.f!==undefined){ state.fam = state.fam===t.dataset.f?null:t.dataset.f; render(); return; }
   if(t.dataset.id){ state.open=t.dataset.id; state.confirmDel=false; state.rev=false; render(); window.scrollTo(0,0); return; }
-  if(t.dataset.back){ state.open=null; render(); return; }
+  if(t.dataset.back){ goHome(); return; }
   if(t.dataset.retry){ state.db.collection(COL.queue).doc(t.dataset.retry).update({status:"pending", message:""}).catch(()=>toast("Relance impossible.")); return; }
   if(t.dataset.drop){ state.db.collection(COL.queue).doc(t.dataset.drop).delete().catch(()=>toast("Suppression impossible.")); return; }
   const f = state.fiches.find(x=>x.id===state.open);
@@ -608,6 +620,7 @@ document.addEventListener("pointerup", endDrag); document.addEventListener("poin
 /* ---------- boot ---------- */
 const FIREBASE_CONFIG={apiKey:"AIzaSyD6XQRZYwReCAnvPU6ZfhjHwIXvRrgmScA",authDomain:"kit-msk.firebaseapp.com",projectId:"kit-msk",storageBucket:"kit-msk.firebasestorage.app",messagingSenderId:"507180323681",appId:"1:507180323681:web:f7b3f350b179a60dd22b20"};
 applyTheme();
+try{ const h=decodeURIComponent((location.hash||"").slice(1)); if(h) state.open=h; }catch{}
 render();
 function netState(){ const o=$("#offline"); if(o) o.hidden = navigator.onLine; }
 addEventListener("online",netState); addEventListener("offline",netState); netState();
