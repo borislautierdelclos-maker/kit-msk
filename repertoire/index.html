@@ -111,6 +111,7 @@ button{cursor:pointer}
 .sec li{margin:3px 0}
 .sec li::marker{color:var(--muted)}
 .mod{margin-top:8px}
+.mod ul{margin:0;padding-left:1.1em}.mod li{margin:3px 0}
 .mod h4{font-family:var(--f-mono);font-size:.74rem;font-weight:500;color:var(--muted);margin:10px 0 3px;letter-spacing:.03em}
 .dd{display:grid;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
 .dd div{display:grid;grid-template-columns:minmax(0,10rem) minmax(0,1fr);gap:12px;padding:8px 12px;border-top:1px solid var(--line);font-size:.92rem}
@@ -176,6 +177,13 @@ button{cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface);font-weight:700}
 .thumbs{display:flex;gap:6px;flex-wrap:wrap}
 .thumbs img{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.addhere{display:inline-block;margin:4px 0 2px;font-size:.75rem;color:var(--muted);cursor:pointer;opacity:.75}
+.addhere:hover{color:var(--ink);opacity:1}
+.sech{font-family:var(--f-display);font-size:.82rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink);margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.gal{margin:8px 0}
+.gal figcaption{flex-wrap:wrap}
+.gal .cap{flex:1;min-width:0}
+.gal .mv{width:100%;font-size:.75rem;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.88rem;z-index:30;max-width:calc(100% - 32px)}
 .offline{font-family:var(--f-mono);font-size:.66rem;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
 </style>
@@ -391,14 +399,43 @@ function renderList(){
   if(state.filter && !list.length) html += `<div class="empty"><p>Aucune fiche dans ce filtre.</p></div>`;
   main.innerHTML = html;
 }
+function ficheSections(f){
+  // [{key,label,html}] dans l'ordre d'affichage
+  const out=[];
+  const list=(items)=>`<ul>${arr(items).map(x=>`<li>${fmt(x)}</li>`).join("")}</ul>`;
+  if(f.cle) out.push({key:"cle",label:"À retenir",html:`<div class="key"><small>À retenir</small>${fmt(f.cle)}</div>`});
+  if(arr(f.epidemio).length) out.push({key:"epidemio",label:"Épidémiologie",html:`<section class="sec"><h3>Épidémiologie</h3>${list(f.epidemio)}</section>`});
+  if(arr(f.clinique).length) out.push({key:"clinique",label:"Clinique",html:`<section class="sec"><h3>Clinique</h3>${list(f.clinique)}</section>`});
+  arr(f.imagerie).forEach((m,k)=>out.push({key:"imagerie:"+k,label:"Imagerie — "+(m.modalite||""),html:`${k===0?'<h3 class="sech">Imagerie</h3>':""}<div class="mod"><h4>${esc(m.modalite)}</h4>${list(m.points)}</div>`}));
+  if(arr(f.dd).length) out.push({key:"dd",label:"Diagnostics différentiels",html:`<section class="sec"><h3>Diagnostics différentiels</h3><div class="dd">${arr(f.dd).map(d=>`<div><b>${fmt(d.entite)}</b><span>${fmt(d.distinction)}</span></div>`).join("")}</div></section>`});
+  if(arr(f.pieges).length) out.push({key:"pieges",label:"Pièges",html:`<section class="trap sec"><h3>Pièges</h3>${list(f.pieges)}</section>`});
+  if(f.contenu_md){
+    const parts=String(f.contenu_md).split(/\n(?=##\s)/);
+    parts.forEach((p,k)=>{ const h=(p.match(/^##\s+(.+)/)||[])[1]; out.push({key:"md:"+k,label:h?h.replace(/[*_`]/g,"").trim():(k===0?"Début du contenu":"Bloc "+(k+1)),html:`<div class="md">${mdHtml(p)}</div>`}); });
+  }
+  out.push({key:"fin",label:"Fin de fiche",html:""});
+  return out;
+}
+function imgSection(im, keys){ const s=im.section; return s && keys.includes(s) ? s : "fin"; }
+function figures(f, key, keys, secs){
+  const items = arr(f.images).map((im,i)=>[im,i]).filter(([im])=>imgSection(im,keys)===key);
+  if(!items.length) return "";
+  return `<div class="gal">${items.map(([im,i])=>`<figure><img src="${esc(imgUrl(im))}" ${im.fs?`data-fs="${esc(im.fs)}"`:""} alt="${esc(im.legende||"")}" loading="lazy" data-zoom="1">
+    <figcaption>${state.capFor===i?`<input id="capin" value="${esc(im.legende||"")}" placeholder="Légende" style="flex:1;min-width:0;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"><button class="linkbtn" data-capsave="${i}">OK</button>`
+    :`<span class="cap">${esc(im.legende||"")}</span><span class="figact"><button class="linkbtn" data-cap="${i}">Légende</button><button class="linkbtn" data-imgdel="${i}">Retirer</button></span>
+      <select class="mv" data-move="${i}" aria-label="Déplacer l'image">${secs.map(s=>`<option value="${esc(s.key)}" ${s.key===key?"selected":""}>↳ ${esc(s.label)}</option>`).join("")}</select>`}</figcaption></figure>`).join("")}</div>`;
+}
 function renderFiche(){
   const f = state.fiches.find(x=>x.id===state.open);
   const main = $("#main");
   if(!f){ state.open=null; return render(); }
-  const list = (title, items, cls="") => arr(items).length ? `<section class="sec ${cls}"><h3>${title}</h3><ul>${arr(items).map(i=>`<li>${fmt(i)}</li>`).join("")}</ul></section>` : "";
-  const im = arr(f.imagerie).length ? `<section class="sec"><h3>Imagerie</h3>${arr(f.imagerie).map(m=>`<div class="mod"><h4>${esc(m.modalite)}</h4><ul>${arr(m.points).map(p=>`<li>${fmt(p)}</li>`).join("")}</ul></div>`).join("")}</section>` : "";
-  const dd = arr(f.dd).length ? `<section class="sec"><h3>Diagnostics différentiels</h3><div class="dd">${arr(f.dd).map(d=>`<div><b>${fmt(d.entite)}</b><span>${fmt(d.distinction)}</span></div>`).join("")}</div></section>` : "";
-  const traps = arr(f.pieges).length ? `<section class="trap sec"><h3>Pièges</h3><ul>${arr(f.pieges).map(i=>`<li>${fmt(i)}</li>`).join("")}</ul></section>` : "";
+  const secs = ficheSections(f), keys = secs.map(s=>s.key);
+  const addHere = k => `<label class="addhere" for="imgup" data-sec="${esc(k)}">+ image ici</label>`;
+  const body = secs.map(s=>{
+    const figs = figures(f, s.key, keys, secs);
+    if(s.key==="fin") return figs ? `<section class="sec"><h3>Images</h3>${figs}</section>` : "";
+    return s.html + figs + addHere(s.key);
+  }).join("");
   const src = arr(f.sources).length ? `<section class="sec src"><h3>Sources</h3><ul>${arr(f.sources).map(s=>`<li>${/^https:\/\//.test(s.url||"")?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.titre||s.url)}</a>`:esc(s.titre||"")}</li>`).join("")}</ul></section>` : "";
   const ctx = f.contexte ? `<section class="sec ctx"><h3>Croisée où</h3><p style="margin:0">${fmt(f.contexte)}</p></section>` : "";
   const d = s => s ? new Date(s).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}) : "";
@@ -411,15 +448,11 @@ function renderFiche(){
         <h2>${esc(f.nom)}</h2>
         ${(f.nom_en||arr(f.synonymes).length)?`<div class="syn">${[f.nom_en,...arr(f.synonymes)].filter(Boolean).map(esc).join(" · ")}</div>`:""}
       </div>
-      ${f.cle?`<div class="key"><small>À retenir</small>${fmt(f.cle)}</div>`:""}
-      ${list("Épidémiologie", f.epidemio)}
-      ${list("Clinique", f.clinique)}
-      ${im}${dd}${traps}
-      ${f.contenu_md?`<div class="md">${mdHtml(f.contenu_md)}</div>`:""}
-      ${gallery(f)}
+      ${body}
       ${ctx}${src}
+      <input id="imgup" type="file" accept="image/*" multiple hidden>
       <div class="actions">
-        ${true?`<label class="btn" for="imgup" style="cursor:pointer">Ajouter une image</label><input id="imgup" type="file" accept="image/*" multiple hidden>`:""}
+        <label class="btn addhere-btn" for="imgup" data-sec="fin" style="cursor:pointer">Ajouter une image</label>
         <button class="btn ${f.statut==="verifiee"?"":"primary"}" data-verify="1">${f.statut==="verifiee"?"Repasser à vérifier":"Marquer vérifiée"}</button>
         <button class="btn" data-rev="1" ${pendingRev?"disabled":""}>${pendingRev?"Correction en cours…":"Demander une correction"}</button>
         ${state.confirmDel?`<button class="btn dangerfill" data-del="2">Confirmer la suppression</button><button class="btn" data-del="0">Annuler</button>`:`<button class="btn danger" data-del="1">Supprimer</button>`}
@@ -428,11 +461,6 @@ function renderFiche(){
       <div class="meta">Créée ${d(f.created_at)}${f.updated_at&&f.updated_at!==f.created_at?` · modifiée ${d(f.updated_at)}`:""}</div>
     </article>`;
   hydrateImgs();
-}
-function gallery(f){
-  const ims = arr(f.images); if(!ims.length) return "";
-  return `<section class="sec"><h3>Images</h3><div class="gal">${ims.map((im,i)=>`<figure><img src="${esc(imgUrl(im))}" ${im.fs?`data-fs="${esc(im.fs)}"`:""} alt="${esc(im.legende||"")}" loading="lazy" data-zoom="1">
-    <figcaption>${state.capFor===i?`<input id="capin" value="${esc(im.legende||"")}" placeholder="Légende" style="flex:1;min-width:0;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"><button class="linkbtn" data-capsave="${i}">OK</button>`:`<span>${esc(im.legende||"")}</span><span><button class="linkbtn" data-cap="${i}">Légender</button><button class="linkbtn" data-imgdel="${i}">Retirer</button></span>`}</figcaption></figure>`).join("")}</div></section>`;
 }
 async function saveImages(f, images){ state.db.collection(COL.fiches).doc(f.id).update({images}).catch(()=>toast("Modification non enregistrée.")); }
 function render(){ renderChips(); state.open ? renderFiche() : renderList(); }
@@ -462,6 +490,7 @@ function enqueue(item){
 
 /* ---------- events ---------- */
 document.addEventListener("click", async e=>{
+  const ah=e.target.closest("label[data-sec]"); if(ah){ state.targetSec=ah.dataset.sec; }
   if(e.target.closest("[data-lb]")){ $("#lbroot").innerHTML=""; return; }
   if(e.target.matches(".md img,[data-zoom]")){ lightbox(e.target.src); return; }
   const go = e.target.closest("[data-go]"); if(go){ state.open=go.dataset.go; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); return; }
@@ -509,11 +538,16 @@ document.addEventListener("submit", async e=>{
 document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ if($("#lbroot").innerHTML) $("#lbroot").innerHTML=""; else if($("#sheetroot").innerHTML) closeSheet(); } });
 function showThumbs(){ const th=$("#f-thumbs"); if(!th) return; th.innerHTML=""; state.addFiles.forEach(f=>{ const i=document.createElement("img"); i.src=URL.createObjectURL(f); i.alt=""; th.appendChild(i); }); }
 document.addEventListener("change", async e=>{
+  if(e.target.dataset && e.target.dataset.move!==undefined){
+    const f = state.fiches.find(x=>x.id===state.open); if(!f) return;
+    const i=+e.target.dataset.move; const ims=arr(f.images).map(x=>({...x})); ims[i].section=e.target.value; saveImages(f,ims); toast("Image déplacée"); return;
+  }
   if(e.target.id==="f-img"){ state.addFiles=[...e.target.files]; showThumbs(); return; }
   if(e.target.id==="imgup"){
     const f = state.fiches.find(x=>x.id===state.open); const files=[...e.target.files]; if(!f||!files.length) return;
     toast("Envoi de l'image…");
-    try{ const up = await uploadImages(files); await saveImages(f, arr(f.images).concat(up.map(u=>({...u, legende:""})))); toast("Image ajoutée"); }
+    const sec = state.targetSec || "fin"; state.targetSec = null; e.target.value = "";
+    try{ const up = await uploadImages(files); await saveImages(f, arr(f.images).concat(up.map(u=>({...u, legende:"", section:sec})))); toast("Image ajoutée"); renderFiche(); }
     catch(err){ toast(err&&err.code==="too_big"?"Image trop lourde.":"Envoi impossible, réessaie."); }
   }
 });
