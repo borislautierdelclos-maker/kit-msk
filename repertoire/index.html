@@ -63,7 +63,11 @@ button{cursor:pointer}
 .chip b{font-family:var(--f-mono);font-weight:500;font-size:.72rem;color:var(--muted);margin-left:4px}
 .chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .chip[aria-pressed="true"] b{color:var(--bg)}
-.chips.sub .chip{font-size:.8rem;padding:4px 10px;background:transparent}
+.chips.sub{padding-top:8px}
+.chips.sub .chip{font-size:.8rem;padding:4px 10px;background:var(--ink-soft);color:var(--ink);border-color:transparent;font-weight:700}
+.chips.sub .chip b{color:var(--ink);opacity:.7}
+.chips.sub .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chips.sub .chip[aria-pressed="true"] b{color:var(--surface);opacity:.85}
 
 /* queue */
 .queue{display:grid;gap:6px;margin-top:14px}
