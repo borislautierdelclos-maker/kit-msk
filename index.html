@@ -456,7 +456,7 @@ function treeBack(i){var multi=DOM.comps.length>1;if(i===0){if(multi)TS.comp=nul
 function treeReset(){TS.comp=(DOM.comps.length===1?DOM.comps[0][0]:null);TS.ans=[];renderTree();}
 function methHTML(dom){if(typeof dom.meth==='string')return dom.meth;return '<p class="hint">Le cheminement complet, de l\'image au diagnostic et à la conduite.</p>'+dom.meth.map(function(s){return '<div class="step"><h3><span class="n">'+s[0]+'</span>'+s[1]+'</h3>'+s[2]+(s[3]?'<div class="fig">'+s[3]+'</div>':'')+'</div>';}).join('');}
 function loadDomain(key){DOMKEY=key;DOM=DOMAINS[key];ENT=DOM.ent;CATS=DOM.cats;FAM=DOM.fam;FW=DOM.fw||{};FAMORDER=DOM.famorder;AXES=DOM.axes;LABEL={};CATS.forEach(function(c){c[2].forEach(function(p){LABEL[p[0]]=p[1];});});COMPLABEL={};DOM.comps.forEach(function(c){COMPLABEL[c[0]]=c[1];});
- document.getElementById('apptitle').textContent=DOM.title;document.getElementById('appsub').textContent=DOM.sub;
+ document.getElementById('apptitle').textContent=DOM.title;document.getElementById('appsub').textContent=(DOM.sub||'').replace(/^\d+\s*entit[ée]s/, (ENT?ENT.length:0)+' entités');
  document.getElementById('methwrap').innerHTML=methHTML(DOM);
  selected.clear();compFilter='tous';mountFilters();updateCats();renderRes();
  TS.comp=(DOM.comps.length===1?DOM.comps[0][0]:null);TS.ans=[];renderTree();
