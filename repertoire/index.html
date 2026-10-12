@@ -184,6 +184,22 @@ button{cursor:pointer}
 .gal figcaption{flex-wrap:wrap}
 .gal .cap{flex:1;min-width:0}
 .gal .mv{width:100%;font-size:.75rem;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--muted)}
+.slot{border-radius:8px;transition:background .15s, outline-color .15s;outline:2px dashed transparent;outline-offset:2px}
+body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
+.slot.over{outline-color:var(--ink);background:var(--ink-soft)}
+.fig{margin:10px auto;display:block;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.fig.sz-s{width:34%}.fig.sz-m{width:55%}.fig.sz-l{width:80%}.fig.sz-xl{width:100%}
+@media (max-width:520px){.fig.sz-s{width:50%}.fig.sz-m{width:75%}.fig.sz-l,.fig.sz-xl{width:100%}}
+.fig img{display:block;width:100%;height:auto;background:#fff;cursor:zoom-in}
+.fig figcaption{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;padding:6px 8px;font-size:.8rem;color:var(--muted)}
+.fig .cap{flex:1 1 100%;min-width:0}
+.figact{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.handle{cursor:grab;touch-action:none;user-select:none;font-size:1.1rem;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.szs{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.szb{border:0;background:var(--bg);font-size:.68rem;padding:3px 7px;font-family:var(--f-mono);color:var(--muted)}
+.szb.on{background:var(--ink);color:var(--surface)}
+.fig.dragging{opacity:.35}
+.ghost{position:fixed;z-index:50;pointer-events:none;opacity:.85;box-shadow:0 8px 24px rgba(0,0,0,.25);margin:0}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.88rem;z-index:30;max-width:calc(100% - 32px)}
 .offline{font-family:var(--f-mono);font-size:.66rem;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
 </style>
@@ -419,11 +435,13 @@ function ficheSections(f){
 function imgSection(im, keys){ const s=im.section; return s && keys.includes(s) ? s : "fin"; }
 function figures(f, key, keys, secs){
   const items = arr(f.images).map((im,i)=>[im,i]).filter(([im])=>imgSection(im,keys)===key);
-  if(!items.length) return "";
-  return `<div class="gal">${items.map(([im,i])=>`<figure><img src="${esc(imgUrl(im))}" ${im.fs?`data-fs="${esc(im.fs)}"`:""} alt="${esc(im.legende||"")}" loading="lazy" data-zoom="1">
+  return items.map(([im,i])=>{ const sz = im.size||"l";
+    return `<figure class="fig sz-${esc(sz)}" data-idx="${i}"><img src="${esc(imgUrl(im))}" ${im.fs?`data-fs="${esc(im.fs)}"`:""} alt="${esc(im.legende||"")}" loading="lazy" data-zoom="1">
     <figcaption>${state.capFor===i?`<input id="capin" value="${esc(im.legende||"")}" placeholder="Légende" style="flex:1;min-width:0;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"><button class="linkbtn" data-capsave="${i}">OK</button>`
-    :`<span class="cap">${esc(im.legende||"")}</span><span class="figact"><button class="linkbtn" data-cap="${i}">Légende</button><button class="linkbtn" data-imgdel="${i}">Retirer</button></span>
-      <select class="mv" data-move="${i}" aria-label="Déplacer l'image">${secs.map(s=>`<option value="${esc(s.key)}" ${s.key===key?"selected":""}>↳ ${esc(s.label)}</option>`).join("")}</select>`}</figcaption></figure>`).join("")}</div>`;
+    :`<span class="cap">${esc(im.legende||"")}</span>
+      <span class="figact"><span class="handle" data-drag="${i}" title="Glisser pour déplacer" aria-label="Déplacer">⠿</span>
+      <span class="szs">${["s","m","l","xl"].map(z=>`<button class="szb${z===sz?" on":""}" data-size="${z}" data-i="${i}" aria-label="Taille ${z.toUpperCase()}">${z.toUpperCase()}</button>`).join("")}</span>
+      <button class="linkbtn" data-cap="${i}">Légende</button><button class="linkbtn" data-imgdel="${i}">Retirer</button></span>`}</figcaption></figure>`; }).join("");
 }
 function renderFiche(){
   const f = state.fiches.find(x=>x.id===state.open);
@@ -433,8 +451,8 @@ function renderFiche(){
   const addHere = k => `<label class="addhere" for="imgup" data-sec="${esc(k)}">+ image ici</label>`;
   const body = secs.map(s=>{
     const figs = figures(f, s.key, keys, secs);
-    if(s.key==="fin") return figs ? `<section class="sec"><h3>Images</h3>${figs}</section>` : "";
-    return s.html + figs + addHere(s.key);
+    if(s.key==="fin") return `<div class="slot" data-slot="fin">${figs?`<h3 class="sech">Images</h3>`:""}${figs}</div>`;
+    return s.html + `<div class="slot" data-slot="${esc(s.key)}">${figs}${addHere(s.key)}</div>`;
   }).join("");
   const src = arr(f.sources).length ? `<section class="sec src"><h3>Sources</h3><ul>${arr(f.sources).map(s=>`<li>${/^https:\/\//.test(s.url||"")?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.titre||s.url)}</a>`:esc(s.titre||"")}</li>`).join("")}</ul></section>` : "";
   const ctx = f.contexte ? `<section class="sec ctx"><h3>Croisée où</h3><p style="margin:0">${fmt(f.contexte)}</p></section>` : "";
@@ -509,6 +527,7 @@ document.addEventListener("click", async e=>{
   const f = state.fiches.find(x=>x.id===state.open);
   if(!f) return;
   if(t.dataset.verify){ state.db.collection(COL.fiches).doc(f.id).update({statut: f.statut==="verifiee"?"a_verifier":"verifiee"}).catch(()=>toast("Modification impossible.")); return; }
+  if(t.dataset.size){ const i=+t.dataset.i; const ims=arr(f.images).map(x=>({...x})); ims[i].size=t.dataset.size; saveImages(f,ims); return; }
   if(t.dataset.cap!==undefined){ state.capFor=+t.dataset.cap; renderFiche(); setTimeout(()=>$("#capin")?.focus(),30); return; }
   if(t.dataset.capsave!==undefined){ const i=+t.dataset.capsave; const ims=arr(f.images).map(x=>({...x})); ims[i].legende=$("#capin").value.trim(); state.capFor=null; try{ await saveImages(f,ims); }catch{ toast("Légende non enregistrée."); } renderFiche(); return; }
   if(t.dataset.imgdel!==undefined){ const i=+t.dataset.imgdel; const ims=arr(f.images).filter((_,j)=>j!==i); try{ await saveImages(f,ims); toast("Image retirée"); }catch{ toast("Impossible de retirer l'image."); } return; }
@@ -556,6 +575,35 @@ document.addEventListener("paste", e=>{
   if($("#f-img")){ state.addFiles=state.addFiles.concat(files); showThumbs(); e.preventDefault(); }
 });
 $("#q").addEventListener("input", e=>{ state.q=e.target.value; state.open=null; renderList(); });
+
+/* ---------- drag & drop des images ---------- */
+let drag=null;
+document.addEventListener("pointerdown", e=>{
+  const h=e.target.closest("[data-drag]"); if(!h) return;
+  e.preventDefault();
+  const fig=h.closest("figure"); const r=fig.getBoundingClientRect();
+  const ghost=fig.cloneNode(true); ghost.className+=" ghost"; ghost.style.width=r.width+"px"; ghost.style.left=r.left+"px"; ghost.style.top=r.top+"px";
+  document.body.appendChild(ghost); fig.classList.add("dragging"); document.body.classList.add("is-dragging");
+  drag={i:+h.dataset.drag, ghost, fig, dx:e.clientX-r.left, dy:e.clientY-r.top, slot:null};
+  try{ h.setPointerCapture(e.pointerId); }catch{}
+});
+document.addEventListener("pointermove", e=>{
+  if(!drag) return; e.preventDefault();
+  drag.ghost.style.left=(e.clientX-drag.dx)+"px"; drag.ghost.style.top=(e.clientY-drag.dy)+"px";
+  drag.ghost.style.display="none"; const el=document.elementFromPoint(e.clientX,e.clientY); drag.ghost.style.display="";
+  const slot=el && el.closest && el.closest(".slot");
+  if(slot!==drag.slot){ drag.slot&&drag.slot.classList.remove("over"); slot&&slot.classList.add("over"); drag.slot=slot; }
+  if(e.clientY<60) window.scrollBy(0,-12); else if(e.clientY>innerHeight-60) window.scrollBy(0,12);
+},{passive:false});
+function endDrag(){
+  if(!drag) return; const d=drag; drag=null;
+  d.ghost.remove(); d.fig.classList.remove("dragging"); document.body.classList.remove("is-dragging"); d.slot&&d.slot.classList.remove("over");
+  if(!d.slot) return;
+  const f=state.fiches.find(x=>x.id===state.open); if(!f) return;
+  const ims=arr(f.images).map(x=>({...x})); const it=ims.splice(d.i,1)[0]; it.section=d.slot.dataset.slot; ims.push(it);
+  saveImages(f,ims); toast("Image déplacée");
+}
+document.addEventListener("pointerup", endDrag); document.addEventListener("pointercancel", endDrag);
 
 /* ---------- boot ---------- */
 const FIREBASE_CONFIG={apiKey:"AIzaSyD6XQRZYwReCAnvPU6ZfhjHwIXvRrgmScA",authDomain:"kit-msk.firebaseapp.com",projectId:"kit-msk",storageBucket:"kit-msk.firebasestorage.app",messagingSenderId:"507180323681",appId:"1:507180323681:web:f7b3f350b179a60dd22b20"};
