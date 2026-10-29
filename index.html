@@ -315,12 +315,12 @@ function skeleton(R){
  var s='<svg viewBox="0 0 150 372" xmlns="http://www.w3.org/2000/svg" stroke-linejoin="round" stroke-linecap="round">';
  // SKULL
  var ck=fl("crane"),cs=st("crane"),cw=sw("crane");
- s+='<path d="M75 7 C88 7 96 18 96 30 C96 38 92 44 88 47 C87 52 85 56 80 57 L70 57 C65 56 63 52 62 47 C58 44 54 38 54 30 C54 18 62 7 75 7 Z" fill="'+ck+'" stroke="'+cs+'" stroke-width="'+cw+'"/>';
- s+='<ellipse cx="68.5" cy="32" rx="3.2" ry="3.8" fill="#cdd7d7" opacity=".5"/><ellipse cx="81.5" cy="32" rx="3.2" ry="3.8" fill="#cdd7d7" opacity=".5"/><path d="M72 40 l3 4 l-3 1" fill="none" stroke="'+cs+'" stroke-width=".8" opacity=".5"/><path d="M68 50 Q75 46 82 50" fill="none" stroke="'+cs+'" stroke-width="1" opacity=".6"/>';
+ s+='<path d="M75 8 C87 8 95 17 95 29 C95 39 90 46 83 49 L67 49 C60 46 55 39 55 29 C55 17 63 8 75 8 Z" fill="'+ck+'" stroke="'+cs+'" stroke-width="'+cw+'"/>';
+ s+='<rect x="67" y="48" width="16" height="8" rx="3" fill="'+ck+'" stroke="'+cs+'" stroke-width="'+(cw*0.85)+'"/>';
  // SPINE (S-curve) cervical->sacrum
  var rk=fl("rachis"),rs=st("rachis");
  var spine=[]; for(var n=0;n<22;n++){var ty=59+n*4.4; var cxv=75+Math.sin(n/21*Math.PI*1.1)* (n<7?-2: n<15?2.5:1.2)*0; // slight curve
-   var curve = (n<6? (6-n)*0.5 : (n<14? -(n-6)*0.4 : (n-14)*0.6));
+   var curve = 0;
    spine.push([75+curve, ty, 4.2+n*0.28]); }
  spine.forEach(function(v,i){s+='<rect x="'+(v[0]-v[2]).toFixed(1)+'" y="'+v[1].toFixed(1)+'" width="'+(v[2]*2).toFixed(1)+'" height="'+(i<6?2.8:3.6).toFixed(1)+'" rx="1.8" fill="'+rk+'" stroke="'+rs+'" stroke-width="1.1"/>';});
  // STERNUM + RIBCAGE
