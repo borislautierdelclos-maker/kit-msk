@@ -273,6 +273,12 @@ function pmRegions(sieges){
  if(/cuisse|f[eé]mor|inguin|racine.*membre|hanche|adducteur|quadriceps/.test(t))a('cuisse');
  if(/jambe|genou|mollet|poplit|creux poplit|tibial|p[eé]ronier|gastrocn/.test(t))a('jambe');
  if(/pied|cheville|plantaire|plante|orteil|tarse|m[eé]tatars/.test(t))a('pied');
+ if(/ceinture scapul|scapulaire/.test(t))a('epaule');
+ if(/ceinture pelvienne/.test(t))a('cuisse');
+ if(/\bceintures?\b/.test(t)&&!R.epaule&&!R.cuisse)a('epaule');
+ if(/membre.?s? sup[ée]rieur/.test(t)){a('bras');a('avant_bras');}
+ if(/membre.?s? inf[ée]rieur/.test(t)){a('cuisse');a('jambe');}
+ if(/\bmembres?\b/.test(t)&&!R.bras&&!R.cuisse&&!R.jambe&&!R.avant_bras){a('bras');a('cuisse');}
  if(Object.keys(R).length===0)a('tronc');
  return R;
 }
