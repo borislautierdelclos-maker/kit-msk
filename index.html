@@ -228,41 +228,39 @@ function stMap(plan){
  return s+'</svg>';
 }
 function bodyMap(R){
- function on(){for(var i=0;i<arguments.length;i++)if(R[arguments[i]])return true;return false;}
- var SIL='#dfe6e7',STK='#c2cccd',H='#0f7a70',Hf='#9ed6cd';
- function f(k){return on.apply(null,[].slice.call(arguments))?Hf:SIL;}
- function sk(k){return on.apply(null,[].slice.call(arguments))?H:STK;}
- var s='<svg viewBox="0 0 150 330" xmlns="http://www.w3.org/2000/svg" stroke-linejoin="round">';
- // head + neck
- s+='<circle cx="75" cy="26" r="17" fill="'+f('tete')+'" stroke="'+sk('tete')+'" stroke-width="2"/>';
- s+='<rect x="68" y="41" width="14" height="10" rx="4" fill="'+f('tete')+'" stroke="'+sk('tete')+'" stroke-width="1.6"/>';
- // trunk (paroi/tronc)
- s+='<path d="M55,52 Q75,47 95,52 L99,120 Q75,130 51,120 Z" fill="'+f('tronc')+'" stroke="'+sk('tronc')+'" stroke-width="2"/>';
- // shoulders
- s+='<circle cx="50" cy="60" r="9" fill="'+f('epaule')+'" stroke="'+sk('epaule')+'" stroke-width="1.8"/>';
- s+='<circle cx="100" cy="60" r="9" fill="'+f('epaule')+'" stroke="'+sk('epaule')+'" stroke-width="1.8"/>';
- // upper arms
- s+='<path d="M44,66 L34,112 L44,116 L54,70 Z" fill="'+f('bras')+'" stroke="'+sk('bras')+'" stroke-width="1.6"/>';
- s+='<path d="M106,66 L116,112 L106,116 L96,70 Z" fill="'+f('bras')+'" stroke="'+sk('bras')+'" stroke-width="1.6"/>';
- // forearms
- s+='<path d="M34,114 L30,156 L39,158 L45,118 Z" fill="'+f('avant_bras')+'" stroke="'+sk('avant_bras')+'" stroke-width="1.6"/>';
- s+='<path d="M116,114 L120,156 L111,158 L105,118 Z" fill="'+f('avant_bras')+'" stroke="'+sk('avant_bras')+'" stroke-width="1.6"/>';
- // hands
- s+='<ellipse cx="33" cy="167" rx="7" ry="10" fill="'+f('main')+'" stroke="'+sk('main')+'" stroke-width="1.6"/>';
- s+='<ellipse cx="117" cy="167" rx="7" ry="10" fill="'+f('main')+'" stroke="'+sk('main')+'" stroke-width="1.6"/>';
- // thighs
- s+='<path d="M55,122 L50,196 L66,198 L72,126 Z" fill="'+f('cuisse')+'" stroke="'+sk('cuisse')+'" stroke-width="1.8"/>';
- s+='<path d="M95,122 L100,196 L84,198 L78,126 Z" fill="'+f('cuisse')+'" stroke="'+sk('cuisse')+'" stroke-width="1.8"/>';
- // legs
- s+='<path d="M52,200 L50,268 L63,270 L67,202 Z" fill="'+f('jambe')+'" stroke="'+sk('jambe')+'" stroke-width="1.8"/>';
- s+='<path d="M98,200 L100,268 L87,270 L83,202 Z" fill="'+f('jambe')+'" stroke="'+sk('jambe')+'" stroke-width="1.8"/>';
- // feet
- s+='<path d="M50,272 L48,288 L68,288 L64,272 Z" fill="'+f('pied')+'" stroke="'+sk('pied')+'" stroke-width="1.6"/>';
- s+='<path d="M100,272 L102,288 L82,288 L86,272 Z" fill="'+f('pied')+'" stroke="'+sk('pied')+'" stroke-width="1.6"/>';
- // ping markers on highlighted zones
- var pins={tete:[75,26],tronc:[75,88],epaule:[100,60],bras:[49,90],avant_bras:[35,136],main:[33,167],cuisse:[63,160],jambe:[58,234],pied:[58,280]};
- for(var k in pins){if(on(k)){var p=pins[k];s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="9" fill="#fff" opacity=".92"/><circle cx="'+p[0]+'" cy="'+p[1]+'" r="6.2" fill="#E8641E" stroke="#fff" stroke-width="1.8"/>';}}
- return s+'</svg>';
+ var SIL="#e7ecee",ST="#b9c5c8",H="#1a9d90",HS="#0b6a60";
+ function on(k){return !!R[k];} function f(k){return on(k)?H:SIL;} function s2(k){return on(k)?HS:ST;} function w(k){return on(k)?2:1.3;}
+ var s='<svg viewBox="0 0 150 334" xmlns="http://www.w3.org/2000/svg" stroke-linejoin="round" stroke-linecap="round">';
+ // HEAD + NECK
+ s+='<circle cx="75" cy="26" r="16" fill="'+f("tete")+'" stroke="'+s2("tete")+'" stroke-width="'+w("tete")+'"/>';
+ s+='<path d="M68 40 L68 50 Q75 54 82 50 L82 40" fill="'+f("tete")+'" stroke="'+s2("tete")+'" stroke-width="'+w("tete")+'"/>';
+ // TORSO (trunk): shoulders -> waist -> hips, smooth
+ s+='<path d="M52 56 Q75 50 98 56 C104 58 106 66 103 78 L99 108 Q96 124 92 132 L58 132 Q54 124 51 108 L47 78 C44 66 46 58 52 56 Z" fill="'+f("tronc")+'" stroke="'+s2("tronc")+'" stroke-width="'+w("tronc")+'"/>';
+ // SHOULDERS (deltoid caps)
+ s+='<path d="M52 56 Q40 58 38 72 Q46 66 54 66 Z" fill="'+f("epaule")+'" stroke="'+s2("epaule")+'" stroke-width="'+w("epaule")+'"/>';
+ s+='<path d="M98 56 Q110 58 112 72 Q104 66 96 66 Z" fill="'+f("epaule")+'" stroke="'+s2("epaule")+'" stroke-width="'+w("epaule")+'"/>';
+ // UPPER ARMS
+ s+='<path d="M40 70 Q35 72 34 84 L39 116 Q44 118 48 115 L50 80 Q50 70 44 68 Z" fill="'+f("bras")+'" stroke="'+s2("bras")+'" stroke-width="'+w("bras")+'"/>';
+ s+='<path d="M110 70 Q115 72 116 84 L111 116 Q106 118 102 115 L100 80 Q100 70 106 68 Z" fill="'+f("bras")+'" stroke="'+s2("bras")+'" stroke-width="'+w("bras")+'"/>';
+ // FOREARMS
+ s+='<path d="M39 118 L36 158 Q40 162 45 159 L48 118 Q44 120 39 118 Z" fill="'+f("avant_bras")+'" stroke="'+s2("avant_bras")+'" stroke-width="'+w("avant_bras")+'"/>';
+ s+='<path d="M111 118 L114 158 Q110 162 105 159 L102 118 Q106 120 111 118 Z" fill="'+f("avant_bras")+'" stroke="'+s2("avant_bras")+'" stroke-width="'+w("avant_bras")+'"/>';
+ // HANDS
+ s+='<ellipse cx="40" cy="169" rx="6.5" ry="9" fill="'+f("main")+'" stroke="'+s2("main")+'" stroke-width="'+w("main")+'"/>';
+ s+='<ellipse cx="110" cy="169" rx="6.5" ry="9" fill="'+f("main")+'" stroke="'+s2("main")+'" stroke-width="'+w("main")+'"/>';
+ // THIGHS
+ s+='<path d="M58 134 Q56 150 55 172 L58 214 Q64 218 70 214 L73 170 Q74 150 73 136 Z" fill="'+f("cuisse")+'" stroke="'+s2("cuisse")+'" stroke-width="'+w("cuisse")+'"/>';
+ s+='<path d="M92 134 Q94 150 95 172 L92 214 Q86 218 80 214 L77 170 Q76 150 77 136 Z" fill="'+f("cuisse")+'" stroke="'+s2("cuisse")+'" stroke-width="'+w("cuisse")+'"/>';
+ // LEGS
+ s+='<path d="M58 218 L56 280 Q62 284 68 281 L69 218 Q64 221 58 218 Z" fill="'+f("jambe")+'" stroke="'+s2("jambe")+'" stroke-width="'+w("jambe")+'"/>';
+ s+='<path d="M92 218 L94 280 Q88 284 82 281 L81 218 Q86 221 92 218 Z" fill="'+f("jambe")+'" stroke="'+s2("jambe")+'" stroke-width="'+w("jambe")+'"/>';
+ // FEET
+ s+='<path d="M58 282 L56 298 Q66 302 72 298 L70 283 Q64 286 58 282 Z" fill="'+f("pied")+'" stroke="'+s2("pied")+'" stroke-width="'+w("pied")+'"/>';
+ s+='<path d="M92 282 L94 298 Q84 302 78 298 L80 283 Q86 286 92 282 Z" fill="'+f("pied")+'" stroke="'+s2("pied")+'" stroke-width="'+w("pied")+'"/>';
+ // PINGS
+ var pins={tete:[75,26],tronc:[75,94],epaule:[42,66],bras:[41,92],avant_bras:[41,140],main:[40,169],cuisse:[64,175],jambe:[62,250],pied:[64,292]};
+ var P="";for(var k in pins){if(on(k)){var a=pins[k],b=[150-a[0],a[1]];[a,b].forEach(function(p){if(k=='tete'||k=='tronc'){if(p!==a)return;}P+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="8.5" fill="#fff" opacity=".9"/><circle cx="'+p[0]+'" cy="'+p[1]+'" r="5.6" fill="#E8641E" stroke="#fff" stroke-width="1.6"/>';});}}
+ return s+P+'</svg>';
 }
 function pmRegions(sieges){
  var t=(sieges||'').toLowerCase(),R={};function a(k){R[k]=1;}
