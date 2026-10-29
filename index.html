@@ -104,7 +104,7 @@ body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Ro
 .tq{font-size:17px;color:#1f3a5f;font-weight:600;margin:6px 0 10px}
 .tq.done{color:#0e6e6e}
 .topts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
-.topt{border:1px solid #dde3ea;background:#fff;border-radius:10px;padding:11px 15px;font-size:14px;cursor:pointer;color:#1f3a5f;font-weight:600}
+.topt{border:1px solid #dde3ea;background:#fff;border-radius:10px;padding:11px 15px;font-size:14px;cursor:pointer;color:#1f3a5f;font-weight:600}.optn{opacity:.5;font-weight:700;font-size:11px;margin-left:2px}
 .topt:hover{background:#eef6f6;border-color:#0e6e6e}
 .topt.skip{font-weight:400;color:#5b6673}
 .tres{background:#fafbfc;border:1px solid #dde3ea;border-radius:12px;padding:12px 14px}
@@ -442,16 +442,15 @@ function renderTree(){var box=document.getElementById('tree');if(!box)return;var
  if(!TS.comp){html+='<div class="fnode active"><div class="fq">Quel compartiment ?</div><div class="fopts">'+DOM.comps.map(function(c){return '<button class="topt" onclick="treeComp(\''+c[0]+'\')">'+(c[1]||c[0])+'</button>';}).join('')+'</div></div></div>';box.innerHTML=html;return;}
  if(multi)html+='<div class="fnode chosen">Compartiment : <b>'+(COMPLABEL[TS.comp]||TS.comp)+'</b><span class="fedit" onclick="treeBack(0)">modifier</span></div>';
  var axes=AXES[TS.comp]||[];
- for(var k=0;k<TS.ans.length;k++){html+='<div class="fconn"></div><div class="fnode chosen">'+shortQ(axes[k].q)+' : <b>'+TS.ans[k].label+'</b><span class="fedit" onclick="treeBack('+(k+1)+')">modifier</span></div>';}
- if(TS.ans.length<axes.length){var cax=axes[TS.ans.length];html+='<div class="fconn"></div><div class="fnode active"><div class="fq">'+cax.q+'</div><div class="fopts">';cax.opts.forEach(function(o,oi){html+='<button class="topt" onclick="treePick('+oi+')">'+o[0]+'</button>';});html+='<button class="topt skip" onclick="treePick(-1)">je ne sais pas</button></div></div>';}
- else{html+='<div class="fconn"></div><div class="fnode active"><div class="fq" style="color:#0e6e6e;margin:0">✓ Fin du parcours</div></div>';}
+ for(var k=0;k<TS.ans.length;k++){if(TS.ans[k].auto)continue;html+='<div class="fconn"></div><div class="fnode chosen">'+shortQ(axes[k].q)+' : <b>'+TS.ans[k].label+'</b><span class="fedit" onclick="treeBack('+(k+1)+')">modifier</span></div>';}
+ var _cands=treeGroups().strong;var _ui=TS.ans.length,_shown=null;while(_ui<axes.length){var _ax=axes[_ui];var _cnt=_ax.opts.map(function(o){return _cands.filter(function(e){return o[1].some(function(t){return (e.gammes||[]).indexOf(t)>=0;});}).length;});var _nz=_cnt.filter(function(n){return n>0;});if(_cands.length>1&&_nz.length>=2&&_nz.some(function(n){return n<_cands.length;})){_shown={ax:_ax,idx:_ui,cnt:_cnt};break;}_ui++;}if(_shown){html+='<div class="fconn"></div><div class="fnode active"><div class="fq">'+_shown.ax.q+'</div><div class="fopts">';_shown.ax.opts.forEach(function(o,oi){if(_shown.cnt[oi]>0){html+='<button class="topt" onclick="treePick('+oi+','+_shown.idx+')">'+o[0]+' <span class="optn">'+_shown.cnt[oi]+'</span></button>';}});html+='<button class="topt skip" onclick="treePick(-1,'+_shown.idx+')">je ne sais pas</button></div></div>';}else{html+='<div class="fconn"></div><div class="fnode active"><div class="fq" style="color:#0e6e6e;margin:0">✓ Fin du parcours</div></div>';}
  html+='</div>';
  var G=treeGroups();html+='<div class="fleaf"><div class="tres"><div class="tresh">À quoi tu penses — <b>'+G.strong.length+'</b> entité(s)'+(G.partial.length?' <span style="color:#8a94a2;font-weight:400">+ '+G.partial.length+' compatibles</span>':'')+'</div>';
  function _rg(list,dim){var byF={};list.forEach(function(e){(byF[e.famille]=byF[e.famille]||[]).push(e);});var out='';FAMORDER.forEach(function(f){if(byF[f]){out+='<div class="tfam">'+(FAM[f]||f)+'</div><div class="tgrid">'+byF[f].map(function(e){return '<div class="tcard'+(dim?' dim':'')+'" style="border-left-color:'+sevCol(e)+'" onclick="openFiche(\''+e.id+'\')">'+e.nom+'</div>';}).join('')+'</div>';}});return out;}
  html+=_rg(G.strong,false);if(G.partial.length){html+='<div class="tparth">± Compatibles — matchent tous les critères sauf un</div>'+_rg(G.partial,true);}html+='</div></div>';
  html+='<div style="text-align:center;margin-top:12px"><button class="topt skip" onclick="treeReset()">↻ Recommencer</button></div>';box.innerHTML=html;}
 function treeComp(c){TS.comp=c;TS.ans=[];renderTree();}
-function treePick(oi){var ax=AXES[TS.comp][TS.ans.length];if(oi<0)TS.ans.push({axisIdx:TS.ans.length,tags:[],label:'(indéterminé)'});else TS.ans.push({axisIdx:TS.ans.length,tags:ax.opts[oi][1],label:ax.opts[oi][0]});renderTree();}
+function treePick(oi,ui){if(typeof ui!=='number')ui=TS.ans.length;while(TS.ans.length<ui){TS.ans.push({axisIdx:TS.ans.length,tags:[],label:'(passé)',auto:true});}var ax=AXES[TS.comp][ui];if(oi<0)TS.ans.push({axisIdx:ui,tags:[],label:'(indéterminé)'});else TS.ans.push({axisIdx:ui,tags:ax.opts[oi][1],label:ax.opts[oi][0]});renderTree();}
 function treeBack(i){var multi=DOM.comps.length>1;if(i===0){if(multi)TS.comp=null;TS.ans=[];}else{TS.ans=TS.ans.slice(0,i-1);}renderTree();}
 function treeReset(){TS.comp=(DOM.comps.length===1?DOM.comps[0][0]:null);TS.ans=[];renderTree();}
 function methHTML(dom){if(typeof dom.meth==='string')return dom.meth;return '<p class="hint">Le cheminement complet, de l\'image au diagnostic et à la conduite.</p>'+dom.meth.map(function(s){return '<div class="step"><h3><span class="n">'+s[0]+'</span>'+s[1]+'</h3>'+s[2]+(s[3]?'<div class="fig">'+s[3]+'</div>':'')+'</div>';}).join('');}
