@@ -1,4 +1,4 @@
-const CACHE='kitmsk-v2';
+const CACHE='kitmsk-v3';
 const CORE=['./','./index.html','./manifest.webmanifest','./icon.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>Promise.all(CORE.map(u=>c.add(u).catch(()=>{})))));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
