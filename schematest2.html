@@ -16,34 +16,25 @@ function _capR(hl,x1,y1,x2,y2,w1,w2){w2=w2||w1*0.8;var f=hl?HL:BONE,st=hl?HLS:ST
   ' Q'+(x1-Math.cos(ang)*w1*1.35).toFixed(1)+' '+(y1-Math.sin(ang)*w1*1.35).toFixed(1)+' '+(x1+nx*w1).toFixed(1)+' '+(y1+ny*w1).toFixed(1)+' Z" fill="'+f+'" stroke="'+st+'" stroke-width="'+sw+'"/>';
 }
 function _knob(hl,x,y,r){return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+(hl?HL:BONE)+'" stroke="'+(hl?HLS:STK)+'" stroke-width="'+(hl?1.9:1.3)+'"/>';}
-function _hand(hl,cx,topY,dir){var f=hl?HL:BONE,st=hl?HLS:STK,w=hl?1.7:1.15;var s='<g>';
- // carpus
- s+='<rect x="'+(cx-4.5)+'" y="'+topY+'" width="9" height="6" rx="3" fill="'+f+'" stroke="'+st+'" stroke-width="'+w+'"/>';
- // 4 fingers: metacarpal + 3 phalanges, fanning
- var spread=[-5,-1.7,1.7,5];
- spread.forEach(function(off,i){var bx=cx+off, len=i==0||i==3?1:1.12;
-   var mcY=topY-9*len, p1=mcY-6*len, p2=p1-4.5*len, p3=p2-3.5*len;
-   var fx=cx+off*1.5;
-   s+='<line x1="'+bx+'" y1="'+topY+'" x2="'+fx+'" y2="'+mcY+'" stroke="'+st+'" stroke-width="'+(w+0.5)+'" stroke-linecap="round"/>';
-   s+='<line x1="'+fx+'" y1="'+mcY+'" x2="'+fx+'" y2="'+p1+'" stroke="'+st+'" stroke-width="'+(w+0.2)+'" stroke-linecap="round"/>';
-   s+='<line x1="'+fx+'" y1="'+p1+'" x2="'+fx+'" y2="'+p2+'" stroke="'+st+'" stroke-width="'+w+'" stroke-linecap="round"/>';
-   s+='<line x1="'+fx+'" y1="'+p2+'" x2="'+fx+'" y2="'+p3+'" stroke="'+st+'" stroke-width="'+(w-0.1)+'" stroke-linecap="round"/>';
+function _hand(hl,cx,topY,dir){var f=hl?HL:BONE,st=hl?HLS:STK,w=hl?1.6:1.1;var s='<g>';
+ s+='<path d="M'+(cx-4.5)+' '+topY+' Q'+cx+' '+(topY-2)+' '+(cx+4.5)+' '+topY+' L'+(cx+4)+' '+(topY+6)+' Q'+cx+' '+(topY+8)+' '+(cx-4)+' '+(topY+6)+' Z" fill="'+f+'" stroke="'+st+'" stroke-width="'+w+'"/>';
+ var spread=[-3.2,-1.1,1.1,3.2];
+ spread.forEach(function(off,i){var mid=i==1||i==2;var bx=cx+off; var fx=cx+off*1.15;
+   var mcY=topY+6-7*(mid?1.1:1), p1=mcY+ (topY<200?0:0); // downward fingers
+   var dY=topY+6; var m1=dY+ (6.5*(mid?1.1:0.95)); var ph1=m1+4.5; var ph2=ph1+3.4;
+   s+='<line x1="'+bx+'" y1="'+dY+'" x2="'+fx+'" y2="'+m1+'" stroke="'+st+'" stroke-width="'+(w+0.4)+'" stroke-linecap="round"/>';
+   s+='<line x1="'+fx+'" y1="'+m1+'" x2="'+fx+'" y2="'+ph1+'" stroke="'+st+'" stroke-width="'+(w+0.1)+'" stroke-linecap="round"/>';
+   s+='<line x1="'+fx+'" y1="'+ph1+'" x2="'+fx+'" y2="'+ph2+'" stroke="'+st+'" stroke-width="'+w+'" stroke-linecap="round"/>';
  });
- // thumb (lateral, lower)
- s+='<line x1="'+(cx-dir*4)+'" y1="'+(topY+4)+'" x2="'+(cx-dir*10)+'" y2="'+(topY-1)+'" stroke="'+st+'" stroke-width="'+(w+0.6)+'" stroke-linecap="round"/>';
- s+='<line x1="'+(cx-dir*10)+'" y1="'+(topY-1)+'" x2="'+(cx-dir*14)+'" y2="'+(topY-5)+'" stroke="'+st+'" stroke-width="'+(w+0.2)+'" stroke-linecap="round"/>';
+ s+='<line x1="'+(cx-dir*3.5)+'" y1="'+(topY+5)+'" x2="'+(cx-dir*8.5)+'" y2="'+(topY+9)+'" stroke="'+st+'" stroke-width="'+(w+0.4)+'" stroke-linecap="round"/>';
  return s+'</g>';
 }
-function _foot(hl,x,y,dir){var f=hl?HL:BONE,st=hl?HLS:STK,w=hl?1.7:1.15;var s='<g>';
- // calcaneus (heel, back = toward midline side opposite toes)
- s+='<path d="M'+x+' '+y+' q'+(-dir*5)+' 1 '+(-dir*5)+' 6 q0 4 '+(dir*4)+' 4" fill="'+f+'" stroke="'+st+'" stroke-width="'+w+'"/>';
- // talus/tarsus block
- s+='<ellipse cx="'+(x+dir*2)+'" cy="'+(y+6)+'" rx="5" ry="3.6" fill="'+f+'" stroke="'+st+'" stroke-width="'+w+'"/>';
- // 5 metatarsals + phalanges fanning forward (toward toes = dir)
- for(var i=0;i<5;i++){var a=(x+dir*5), ty=y+3+i*1.6, ex=x+dir*(13+i*0.6), ey=y+2+i*2.4;
-   s+='<line x1="'+a+'" y1="'+ty+'" x2="'+ex+'" y2="'+ey+'" stroke="'+st+'" stroke-width="'+(w+0.3)+'" stroke-linecap="round"/>';
-   s+='<line x1="'+ex+'" y1="'+ey+'" x2="'+(ex+dir*3)+'" y2="'+(ey+0.5)+'" stroke="'+st+'" stroke-width="'+w+'" stroke-linecap="round"/>';
- }
+function _foot(hl,x,y,dir){var f=hl?HL:BONE,st=hl?HLS:STK,w=hl?1.6:1.1;var s='<g>';
+ // tarsus (heel+midfoot) compact block
+ s+='<path d="M'+(x-dir*3)+' '+y+' Q'+(x-dir*4.5)+' '+(y+5)+' '+(x)+' '+(y+6.5)+' L'+(x+dir*4)+' '+(y+6.5)+' Q'+(x+dir*5)+' '+(y+2)+' '+(x+dir*2)+' '+y+' Z" fill="'+f+'" stroke="'+st+'" stroke-width="'+w+'"/>';
+ // 5 short metatarsals forward (dir) + toe tips
+ for(var i=0;i<5;i++){var a=x+dir*3, ay=y+3+i*0.8, ex=x+dir*(8.5+i*0.3), ey=y+6.5+i*1.0;
+   s+='<line x1="'+a+'" y1="'+ay+'" x2="'+ex+'" y2="'+ey+'" stroke="'+st+'" stroke-width="'+(w+0.2)+'" stroke-linecap="round"/>';}
  return s+'</g>';
 }
 function skeleton(R){
