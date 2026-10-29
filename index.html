@@ -332,7 +332,7 @@ function uBody(e){var p=e.pres||[];var soft=p.indexOf('parties_molles')>=0&&p.in
  var sh=all.some(function(k){return hk.indexOf(k)>=0;}),sf=all.some(function(k){return fk.indexOf(k)>=0;});
  var sym=J.symetrie=='sym'?' · symétrique':(J.symetrie=='asym'?' · asymétrique':'');
  var ax=['rachis_cervical','rachis_dorsolomb','sacro_iliaque','symphyse_pubienne','enthese_bassin'];var sa=all.some(function(k){return ax.indexOf(k)>=0;});
- var out='<div class="schemas"><div class="sch">'+uBody(e)+'<div class="schcap">Sièges préférentiels</div></div><div class="sch">'+inflaBody(J)+'<div class="schcap">Distribution articulaire'+sym+'</div></div>';
+ var out='<div class="schemas"><div class="sch">'+uBody(e)+'<div class="schcap">Sièges préférentiels'+sym+'</div></div>';
  if(sa)out+='<div class="sch">'+_axialSvg(J)+'<div class="schcap">Axial (détail)</div></div>';
  if(sh)out+='<div class="sch">'+_handSvg(J)+'<div class="schcap">Main (détail)</div></div>';
  if(sf)out+='<div class="sch">'+_footSvg(J)+'<div class="schcap">Avant-pied (détail)</div></div>';
