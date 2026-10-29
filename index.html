@@ -282,7 +282,97 @@ function pmRegions(sieges){
 
 // shared fiche body builder
 function _skcap(x1,y1,x2,y2,hl,w){var c=hl?"#0e6e6e":"#b9ad8f";var ww=hl?w+2.5:w;return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+c+'" stroke-width="'+ww+'" stroke-linecap="round"/>';}
-function skeleton(R){var BONE="#eef2f2",STK="#aeb9ba",HL="#0f7a70";function on(){for(var i=0;i<arguments.length;i++){if(R[arguments[i]])return true;}return false;}function fl(k){return on(k)?HL:BONE;}function st(k){return on(k)?HL:STK;}var s='<svg viewBox="0 0 150 344" xmlns="http://www.w3.org/2000/svg">';s+='<ellipse cx="75" cy="22" rx="15" ry="17" fill="'+fl("crane")+'" stroke="'+st("crane")+'" stroke-width="2.5"/><rect x="66" y="36" width="18" height="9" rx="4" fill="'+fl("crane")+'" stroke="'+st("crane")+'" stroke-width="2"/>';for(var y=48;y<150;y+=13){s+='<rect x="69" y="'+y+'" width="12" height="10" rx="3" fill="'+fl("rachis")+'" stroke="'+st("rachis")+'" stroke-width="1.6"/>';}var cR=st("cotes"),rw=on("cotes")?3.5:2.4,ribs=[60,74,88,102];for(var i=0;i<ribs.length;i++){var yy=ribs[i];s+='<path d="M72,'+yy+' C58,'+(yy+2)+' 48,'+(yy+8)+' 47,'+(yy+14)+'" fill="none" stroke="'+cR+'" stroke-width="'+rw+'"/><path d="M78,'+yy+' C92,'+(yy+2)+' 102,'+(yy+8)+' 103,'+(yy+14)+'" fill="none" stroke="'+cR+'" stroke-width="'+rw+'"/>';}s+=_skcap(75,54,50,56,on("ceinture"),5)+_skcap(75,54,100,56,on("ceinture"),5);s+='<circle cx="48" cy="58" r="5" fill="'+fl("ceinture")+'" stroke="'+st("ceinture")+'" stroke-width="2"/><circle cx="102" cy="58" r="5" fill="'+fl("ceinture")+'" stroke="'+st("ceinture")+'" stroke-width="2"/>';s+=_skcap(46,60,42,112,on("humerus"),6)+_skcap(104,60,108,112,on("humerus"),6);s+='<circle cx="42" cy="114" r="3.5" fill="'+BONE+'" stroke="'+STK+'" stroke-width="1.6"/><circle cx="108" cy="114" r="3.5" fill="'+BONE+'" stroke="'+STK+'" stroke-width="1.6"/>';s+=_skcap(41,116,39,170,on("avant_bras"),5)+_skcap(45,116,47,170,on("avant_bras"),5)+_skcap(109,116,111,170,on("avant_bras"),5)+_skcap(105,116,103,170,on("avant_bras"),5);s+='<circle cx="36" cy="178" r="6" fill="'+fl("mains")+'" stroke="'+st("mains")+'" stroke-width="2"/><circle cx="114" cy="178" r="6" fill="'+fl("mains")+'" stroke="'+st("mains")+'" stroke-width="2"/>';s+='<path d="M56,152 C48,158 48,172 60,176 L75,178 L90,176 C102,172 102,158 94,152 C86,150 64,150 56,152 Z" fill="'+fl("bassin")+'" stroke="'+st("bassin")+'" stroke-width="2.5"/><path d="M69,168 L81,168 L77,186 L73,186 Z" fill="'+fl("sacrum")+'" stroke="'+st("sacrum")+'" stroke-width="1.6"/>';s+='<circle cx="62" cy="178" r="5" fill="'+BONE+'" stroke="'+STK+'" stroke-width="1.8"/><circle cx="88" cy="178" r="5" fill="'+BONE+'" stroke="'+STK+'" stroke-width="1.8"/>';s+=_skcap(62,182,60,240,on("femur"),6)+_skcap(88,182,90,240,on("femur"),6);if(on("genou")){s+=_skcap(61,222,60,240,true,7)+_skcap(89,222,90,240,true,7);}s+='<circle cx="60" cy="243" r="5" fill="'+fl("genou")+'" stroke="'+st("genou")+'" stroke-width="2"/><circle cx="90" cy="243" r="5" fill="'+fl("genou")+'" stroke="'+st("genou")+'" stroke-width="2"/>';s+=_skcap(60,247,59,304,on("tibia"),6)+_skcap(90,247,91,304,on("tibia"),6)+_skcap(64,247,64,300,on("tibia"),4)+_skcap(86,247,86,300,on("tibia"),4);if(on("genou")){s+=_skcap(60,247,59,265,true,7)+_skcap(90,247,91,265,true,7);}var cF=st("pieds"),fw=on("pieds")?4:3;s+='<path d="M58,306 q-2,8 8,9 l6,0" fill="none" stroke="'+cF+'" stroke-width="'+fw+'" stroke-linecap="round"/><path d="M92,306 q-2,8 8,9 l6,0" fill="none" stroke="'+cF+'" stroke-width="'+fw+'" stroke-linecap="round"/>';var _CEN={crane:[[75,22]],rachis:[[75,100]],cotes:[[58,90],[92,90]],ceinture:[[48,58],[102,58]],humerus:[[44,88],[106,88]],avant_bras:[[40,145],[110,145]],mains:[[36,178],[114,178]],bassin:[[75,163]],sacrum:[[77,180]],femur:[[61,210],[89,210]],genou:[[60,243],[90,243]],tibia:[[60,276],[90,276]],pieds:[[66,314],[100,314]]};var _PG="";for(var _rk in _CEN){if(R[_rk]){_CEN[_rk].forEach(function(p){_PG+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="9" fill="#fff" opacity=".92"/>'+'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="6.2" fill="#E8641E" stroke="#fff" stroke-width="1.8"/>';});}}s+=_PG;return s+'</svg>';}
+function skeleton(R){
+ var BONE="#eef2f2",STK="#9fabad",HL="#1a9d90";
+ function on(){for(var i=0;i<arguments.length;i++)if(R[arguments[i]])return true;return false;}
+ function fl(k){return on(k)?HL:BONE;} function st(k){return on(k)?"#0b6a60":STK;} function sw(k){return on(k)?2.1:1.3;}
+ var s='<svg viewBox="0 0 150 362" xmlns="http://www.w3.org/2000/svg" stroke-linejoin="round" stroke-linecap="round">';
+ // SKULL + mandible
+ var ck=fl("crane"),cs=st("crane"),cw=sw("crane");
+ s+='<path d="M75 7 C87 7 95 17 95 29 C95 37 91 43 87 46 C86 51 84 54 80 55 L70 55 C66 54 64 51 63 46 C59 43 55 37 55 29 C55 17 63 7 75 7 Z" fill="'+ck+'" stroke="'+cs+'" stroke-width="'+cw+'"/>';
+ s+='<ellipse cx="69" cy="31" rx="3.1" ry="3.6" fill="#cfd8d8" opacity=".55"/><ellipse cx="81" cy="31" rx="3.1" ry="3.6" fill="#cfd8d8" opacity=".55"/>';
+ s+='<path d="M67 48 Q75 44 83 48" fill="none" stroke="'+cs+'" stroke-width="1" opacity=".7"/>';
+ // CERVICAL (thin stack)
+ var rk=fl("rachis"),rs=st("rachis"),rw=sw("rachis");
+ for(var y=58;y<76;y+=5){s+='<rect x="71" y="'+y+'" width="8" height="4" rx="2" fill="'+rk+'" stroke="'+rs+'" stroke-width="1.1"/>';}
+ // THORACIC spine + sternum + ribcage
+ var cR=st("cotes"),crw=on("cotes")?2.8:1.8, cf=on("cotes")?"#1a9d90":"none";
+ // vertebral bodies thoracic/lumbar (curve)
+ var spY=[78,88,98,108,118,128,138,148];
+ spY.forEach(function(y,i){var w=9+i*0.5;s+='<rect x="'+(75-w/2).toFixed(1)+'" y="'+y+'" width="'+w.toFixed(1)+'" height="7" rx="2.4" fill="'+rk+'" stroke="'+rs+'" stroke-width="1.3"/>';});
+ // sternum
+ s+='<rect x="72" y="84" width="6" height="26" rx="3" fill="'+fl("cotes")+'" stroke="'+cR+'" stroke-width="1.2" opacity="'+(on("cotes")?1:.9)+'"/>';
+ // ribs (6 pairs, curved from spine to sternum)
+ var ribY=[86,95,104,113,122,130];
+ ribY.forEach(function(y,i){var drop=10+i*2.2, reach=28-i*1.0;
+   s+='<path d="M72 '+y+' C'+(75-reach)+' '+(y-2)+' '+(75-reach-4)+' '+(y+drop*0.6)+' '+(75-reach*0.5)+' '+(y+drop)+'" fill="none" stroke="'+cR+'" stroke-width="'+crw+'"/>';
+   s+='<path d="M78 '+y+' C'+(75+reach)+' '+(y-2)+' '+(75+reach+4)+' '+(y+drop*0.6)+' '+(75+reach*0.5)+' '+(y+drop)+'" fill="none" stroke="'+cR+'" stroke-width="'+crw+'"/>';});
+ // CLAVICLES + shoulders
+ var gk=fl("ceinture"),gs=st("ceinture"),gw=sw("ceinture");
+ s+='<path d="M74 70 Q60 66 48 72" fill="none" stroke="'+gs+'" stroke-width="'+(on("ceinture")?3:2)+'"/><path d="M76 70 Q90 66 102 72" fill="none" stroke="'+gs+'" stroke-width="'+(on("ceinture")?3:2)+'"/>';
+ s+='<circle cx="46" cy="74" r="5.5" fill="'+gk+'" stroke="'+gs+'" stroke-width="'+gw+'"/><circle cx="104" cy="74" r="5.5" fill="'+gk+'" stroke="'+gs+'" stroke-width="'+gw+'"/>';
+ // HUMERUS
+ s+=_capR("humerus",on,46,80,41,132,5.5)+_capR("humerus",on,104,80,109,132,5.5);
+ // elbow
+ s+='<circle cx="41" cy="134" r="3.6" fill="#eef2f2" stroke="#9fabad" stroke-width="1.3"/><circle cx="109" cy="134" r="3.6" fill="#eef2f2" stroke="#9fabad" stroke-width="1.3"/>';
+ // FOREARM (radius+ulna)
+ s+=_capR("avant_bras",on,40,137,37,186,4.2)+_capR("avant_bras",on,45,137,43,186,3.2)
+   +_capR("avant_bras",on,110,137,113,186,4.2)+_capR("avant_bras",on,105,137,107,186,3.2);
+ // HANDS: carpus + metacarpals + phalanges (simplified)
+ ["mains"].forEach(function(){});
+ s+=_hand(on,40,190,-1,fl,st,sw)+_hand(on,110,190,1,fl,st,sw);
+ // PELVIS: iliac wings + sacrum + pubis
+ var bk=fl("bassin"),bs=st("bassin"),bw=sw("bassin");
+ s+='<path d="M60 158 C50 160 48 176 56 184 C62 189 70 187 72 180 L72 166 C70 160 66 157 60 158 Z" fill="'+bk+'" stroke="'+bs+'" stroke-width="'+bw+'"/>';
+ s+='<path d="M90 158 C100 160 102 176 94 184 C88 189 80 187 78 180 L78 166 C80 160 84 157 90 158 Z" fill="'+bk+'" stroke="'+bs+'" stroke-width="'+bw+'"/>';
+ var sk2=fl("sacrum");s+='<path d="M72 165 L78 165 L76 184 L74 184 Z" fill="'+sk2+'" stroke="'+st("sacrum")+'" stroke-width="1.2"/>';
+ s+='<path d="M66 185 Q75 192 84 185" fill="none" stroke="'+bs+'" stroke-width="'+bw+'"/>'; // pubis
+ // hip joints
+ s+='<circle cx="60" cy="183" r="4.6" fill="#eef2f2" stroke="#9fabad" stroke-width="1.5"/><circle cx="90" cy="183" r="4.6" fill="#eef2f2" stroke="#9fabad" stroke-width="1.5"/>';
+ // FEMUR
+ s+=_capR("femur",on,60,186,58,250,6)+_capR("femur",on,90,186,92,250,6);
+ // KNEE (patella)
+ var kk=fl("genou"),ks=st("genou");
+ s+='<circle cx="58" cy="253" r="5" fill="'+kk+'" stroke="'+ks+'" stroke-width="'+sw("genou")+'"/><circle cx="92" cy="253" r="5" fill="'+kk+'" stroke="'+ks+'" stroke-width="'+sw("genou")+'"/>';
+ // TIBIA + fibula
+ s+=_capR("tibia",on,58,257,57,322,5)+_capR("tibia",on,62,258,62,318,2.8)
+   +_capR("tibia",on,92,257,93,322,5)+_capR("tibia",on,88,258,88,318,2.8);
+ // ankle
+ s+='<circle cx="57" cy="324" r="3.4" fill="#eef2f2" stroke="#9fabad" stroke-width="1.3"/><circle cx="93" cy="324" r="3.4" fill="#eef2f2" stroke="#9fabad" stroke-width="1.3"/>';
+ // FEET
+ s+=_foot(on,57,327,fl,st,sw)+_foot(on,93,327,fl,st,sw);
+ // PING overlay
+ var CEN={crane:[[75,30]],rachis:[[75,110]],cotes:[[58,100],[92,100]],ceinture:[[46,74],[104,74]],humerus:[[43,106],[107,106]],avant_bras:[[40,162],[110,162]],mains:[[33,205],[117,205]],bassin:[[60,172],[90,172]],sacrum:[[76,175]],femur:[[59,218],[91,218]],genou:[[58,253],[92,253]],tibia:[[58,290],[92,290]],pieds:[[52,335],[98,335]]};
+ var PG="";for(var k in CEN){if(R[k]){CEN[k].forEach(function(p){PG+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="8.5" fill="#fff" opacity=".9"/><circle cx="'+p[0]+'" cy="'+p[1]+'" r="5.6" fill="#E8641E" stroke="#fff" stroke-width="1.6"/>';});}}
+ s+=PG;
+ return s+'</svg>';
+}
+function _capR(key,on,x1,y1,x2,y2,w){var BONE="#eef2f2",STK="#9fabad",HL="#1a9d90";var hl=on(key);var f=hl?HL:BONE,st=hl?"#0b6a60":STK,sw=hl?2:1.4;
+ var ang=Math.atan2(y2-y1,x2-x1),nx=Math.cos(ang+Math.PI/2),ny=Math.sin(ang+Math.PI/2);var w2=w*0.8;
+ return '<path d="M'+(x1+nx*w)+' '+(y1+ny*w)+' L'+(x2+nx*w2)+' '+(y2+ny*w2)+' Q'+(x2+Math.cos(ang)*w2*1.3)+' '+(y2+Math.sin(ang)*w2*1.3)+' '+(x2-nx*w2)+' '+(y2-ny*w2)+' L'+(x1-nx*w)+' '+(y1-ny*w)+' Q'+(x1-Math.cos(ang)*w*1.3)+' '+(y1-Math.sin(ang)*w*1.3)+' '+(x1+nx*w)+' '+(y1+ny*w)+' Z" fill="'+f+'" stroke="'+st+'" stroke-width="'+sw+'"/>';
+}
+function _hand(on,cx,topY,dir,fl,st,sw){var hl=on("mains");var f=hl?"#1a9d90":"#eef2f2",stk=hl?"#0b6a60":"#9fabad",w=hl?1.8:1.2;
+ var s='<g>';
+ // carpus block
+ s+='<rect x="'+(cx-5)+'" y="'+(topY+14)+'" width="10" height="7" rx="3" fill="'+f+'" stroke="'+stk+'" stroke-width="'+w+'"/>';
+ // 4 metacarpals + phalanges fanning
+ for(var i=0;i<4;i++){var mx=cx-6+i*4; var my=topY+14; var ty=topY-2-i*0.5;
+   s+='<line x1="'+mx+'" y1="'+my+'" x2="'+(mx-1+dir*1)+'" y2="'+(my-10)+'" stroke="'+stk+'" stroke-width="'+(w+0.4)+'"/>';
+   s+='<line x1="'+(mx-1+dir*1)+'" y1="'+(my-10)+'" x2="'+(mx-2+dir*2)+'" y2="'+(my-18)+'" stroke="'+stk+'" stroke-width="'+w+'"/>';
+ }
+ // thumb
+ s+='<line x1="'+(cx+dir*5)+'" y1="'+(topY+18)+'" x2="'+(cx+dir*11)+'" y2="'+(topY+12)+'" stroke="'+stk+'" stroke-width="'+(w+0.4)+'"/>';
+ return s+'</g>';
+}
+function _foot(on,x,y,fl,st,sw){var hl=on("pieds");var f=hl?"#1a9d90":"#eef2f2",stk=hl?"#0b6a60":"#9fabad",w=hl?1.8:1.2;
+ var dir=x<75?-1:1;
+ var s='<g>';
+ s+='<path d="M'+x+' '+y+' q'+(dir*2)+' 7 '+(dir*2)+' 10" fill="none" stroke="'+stk+'" stroke-width="'+(w+0.6)+'"/>';
+ // tarsus + metatarsals (toes forward = toward midline-ish/out)
+ s+='<ellipse cx="'+(x+dir*3)+'" cy="'+(y+11)+'" rx="5" ry="3.5" fill="'+f+'" stroke="'+stk+'" stroke-width="'+w+'"/>';
+ for(var i=0;i<4;i++){s+='<line x1="'+(x+dir*2+i*dir*2)+'" y1="'+(y+13)+'" x2="'+(x+dir*4+i*dir*2.5)+'" y2="'+(y+19)+'" stroke="'+stk+'" stroke-width="'+w+'"/>';}
+ return s+'</g>';
+}
 function entityRegions(e){var t=(e.sieges||'').toLowerCase(),g=e.gammes||[],R={};function a(k){R[k]=1;}if(g.indexOf('reg_epaule')>=0){a('ceinture');a('humerus');}if(g.indexOf('reg_coude')>=0){a('humerus');a('avant_bras');}if(g.indexOf('reg_poignet_main')>=0)a('mains');if(g.indexOf('reg_rachis')>=0)a('rachis');if(g.indexOf('reg_hanche')>=0){a('bassin');a('femur');}if(g.indexOf('reg_genou')>=0){a('genou');a('femur');a('tibia');}if(g.indexOf('reg_cheville_pied')>=0){a('pieds');a('tibia');}if(g.indexOf('rachis')>=0||/rachis|vert[eè]br|spinal|corps vert|arc post|odonto/.test(t))a('rachis');if(g.indexOf('bassin_sacrum')>=0||/bassin|iliaqu|pelvi|ilion|ischio|pubis/.test(t))a('bassin');if(g.indexOf('bassin_sacrum')>=0||/sacrum|sacr[eé]/.test(t))a('sacrum');if(g.indexOf('cotes')>=0||/c[oô]te|costal|sternum|thorax/.test(t))a('cotes');if(g.indexOf('crane')>=0||/cr[aâ]ne|vo[uû]te|sinus|mandibul|maxill|clivus/.test(t))a('crane');if(g.indexOf('mains_pieds')>=0||/main|doigt|phalang|m[eé]tacarp|carp/.test(t))a('mains');if(g.indexOf('mains_pieds')>=0||/pied|m[eé]tatars|calcan|tarse|orteil|talon/.test(t))a('pieds');if(/clavicul|scapula|omoplate|[eé]paule|acromio/.test(t))a('ceinture');if(g.indexOf('os_plats')>=0){a('cotes');a('bassin');a('ceinture');}if(/genou|distal.{0,8}f[eé]mur|f[eé]mor.{0,8}distal|tibia.{0,8}proximal|proximal.{0,8}tibia/.test(t))a('genou');if(/f[eé]mur|f[eé]moral/.test(t))a('femur');if(/tibia|jambe|p[eé]ron|fibula/.test(t))a('tibia');if(/hum[eé]r/.test(t))a('humerus');if(/radius|ulna|cubitus|avant-bras/.test(t))a('avant_bras');if(Object.keys(R).length===0&&/os longs?|diaphyse|m[eé]taphyse/.test(t)){a('femur');a('humerus');a('tibia');}return R;}
 function buildSchemas(e){var isOs=e.compartiment=='os';if(!isOs){return '<div class="schemas pm"><div class="sch">'+bodyMap(pmRegions(e.sieges||''))+'<div class="schcap">Sièges préférentiels</div></div><div class="sch">'+stMap(e.plan||[])+'<div class="schcap">Plan</div></div></div>';}var hasLong=['epiphysaire','metaphysaire','diaphysaire'].some(function(k){return (e.segment||[]).indexOf(k)>=0;});var out='<div class="schemas"><div class="sch">'+skeleton(entityRegions(e))+'<div class="schcap">Sièges préférentiels</div></div>';if(hasLong)out+='<div class="sch">'+boneMap(e.segment||[],e.position||[])+'<div class="schcap">Topographie (zoom)</div></div>';return out+'</div>';}
 function topoInfo(e){var seg=e.segment||[],g=e.gammes||[];var et=seg.filter(function(s){return ['epiphysaire','metaphysaire','diaphysaire','apophysaire'].indexOf(s)>=0;}).map(function(s){return {epiphysaire:'épiphyse',metaphysaire:'métaphyse',diaphysaire:'diaphyse',apophysaire:'apophyse'}[s];});var locs=[];if(et.length)locs.push('os longs');if(seg.indexOf('axial')>=0||g.indexOf('rachis')>=0||g.indexOf('bassin_sacrum')>=0)locs.push('axial (rachis, bassin, sacrum)');if(g.indexOf('os_plats')>=0||g.indexOf('cotes')>=0||g.indexOf('crane')>=0)locs.push('os plats');if(g.indexOf('mains_pieds')>=0)locs.push('mains / pieds');if(!locs.length)locs.push('—');return {loc:locs.join(' · '),etage:et.join(', ')};}
