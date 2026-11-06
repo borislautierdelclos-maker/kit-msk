@@ -207,6 +207,7 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
 .brand .left{display:flex;align-items:center;gap:10px;min-width:0}
 .homebtn{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 10px 4px 6px;font-weight:700;font-size:.82rem;flex:none}
 #hometitle{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:440px){.addbtn{padding:0 10px;gap:4px}.addbtn svg{display:none}}
 .revbtn{background:var(--surface);color:var(--ink);border:1.5px solid var(--ink)}
 .revbtn .badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--ink);color:var(--surface);font-size:.74rem;display:inline-grid;place-items:center}
 .revbtn .badge:empty{display:none}
@@ -673,7 +674,7 @@ function nextState(c,g,now){
               : c.s*(Math.exp(W[8])*(11-d)*Math.pow(c.s,-W[9])*(Math.exp(W[10]*(1-r))-1)*(g===2?W[15]:1)*(g===4?W[16]:1)+1);
   }
   let days = g===1 ? 0 : ivlDays(s);
-  if(fresh && g<4) days = g===1?0:1;           // nouvelle carte : on la revoit demain
+  if(fresh && g<4) days = [0,0,1,2][g];          // nouvelle carte : revue demain ou après-demain
   const due = g===1 ? now+10*60e3 : now+days*DAY;
   return {s,d,last:now,due,days,reps:(c?.reps||0)+1,lapses:(c?.lapses||0)+(g===1&&!fresh?1:0),first:c?.first||now};
 }
@@ -729,7 +730,7 @@ function renderReview(){
   if(!S.items.length || S.idx>=S.items.length){
     const i=dueInfo(); const next=i.pool.map(x=>state.srs[x.key]&&state.srs[x.key].due).filter(Boolean).sort((a,b)=>a-b)[0];
     const msg = !S.poolSize ? `<h2>Pas encore de cartes${scope}</h2><p>Les cartes sont créées avec chaque nouvelle fiche. Ajoute une entité avec « Ficher » (un lien Radiopaedia suffit).</p>`
-      : S.done ? `<h2>Séance terminée</h2><p>${S.done} carte${S.done>1?"s":""} revue${S.done>1?"s":""}${S.again?`, dont ${S.again} à revoir`:""}.${next?` Prochaine révision ${new Date(next).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"short"})}.`:""}</p>`
+      : S.done ? `<h2>Séance terminée</h2><p>${S.done} carte${S.done>1?"s":""} revue${S.done>1?"s":""}${S.again?`, dont ${S.again} à revoir`:""}.${next?` Prochaine révision ${new Date(next).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}.`:""}</p>`
       : `<h2>Rien à réviser${scope} pour l'instant</h2><p>${next?`Prochaine carte ${new Date(next).toLocaleString("fr-FR",{weekday:"long",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}.`:""} Le quota de ${NEW_PER_DAY} nouvelles cartes par jour se recharge demain.</p>`;
     main.innerHTML = back + `<div class="empty">${msg}${S.done&&i.due.length?`<button class="btn primary" data-again="1">Continuer (${i.due.length} carte${i.due.length>1?"s":""})</button>`:""}${lot}</div>`;
     return;
