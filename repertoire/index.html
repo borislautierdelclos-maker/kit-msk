@@ -354,7 +354,8 @@ function lightbox(src){ $("#lbroot").innerHTML = `<div class="lightbox" data-lb=
 const state = {fiches:[], queue:[], config:null, filter:null, fam:null, q:"", open:null, db:null, mcp:null, assets:null, ready:false, lastKick:0, confirmDel:false, rev:false, addKind:"entite", addFiles:[], capFor:null, mode:null, srs:{}, sess:null};
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmt = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/★+/g, m => `<span class="star">${m}</span>`);
+const fmt = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/★+/g, m => `<span class="star">${m}</span>`)
+  .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m,t,a)=>{ const g=findByTitle(t.replace(/&#39;/g,"'").replace(/&amp;/g,"&")); return g?`<a class="wl" data-go="${esc(g.id)}">${a||t}</a>`:`<span class="wl dead">${a||t}</span>`; });
 const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 const slug = s => norm(s).replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,80) || "entite";
 const arr = v => Array.isArray(v) ? v : (v ? [v] : []);
