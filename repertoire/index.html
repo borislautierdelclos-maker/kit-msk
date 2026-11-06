@@ -207,6 +207,25 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
 .brand .left{display:flex;align-items:center;gap:10px;min-width:0}
 .homebtn{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 10px 4px 6px;font-weight:700;font-size:.82rem;flex:none}
 #hometitle{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.revbtn{background:var(--surface);color:var(--ink);border:1.5px solid var(--ink)}
+.revbtn .badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--ink);color:var(--surface);font-size:.74rem;display:inline-grid;place-items:center}
+.revbtn .badge:empty{display:none}
+.rv{margin-top:14px}
+.rvtop{display:flex;justify-content:space-between;align-items:baseline;gap:10px;color:var(--muted);font-size:.85rem}
+.rvbar{height:4px;background:var(--sunk);border-radius:99px;overflow:hidden;margin:8px 0 14px}.rvbar i{display:block;height:100%;background:var(--ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 16px;display:grid;gap:12px}
+.card .ss{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.card .qq{font-family:var(--f-display);font-weight:700;font-size:1.18rem;line-height:1.3}
+.card .rr{border-top:1px dashed var(--line);padding-top:12px;font-size:1.02rem;line-height:1.45}
+.card .cimg{display:block;width:100%;max-height:52vh;object-fit:contain;background:#000;border-radius:10px;cursor:zoom-in}
+.card .tofiche{justify-self:start;border:0;background:none;color:var(--ink);font-weight:700;padding:0}
+.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
+.grades button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 4px;display:grid;gap:2px;font-weight:700;font-size:.88rem}
+.grades button small{font-weight:400;color:var(--muted);font-size:.74rem}
+.grades .g1{color:var(--danger)}.grades .g2{color:var(--warn)}.grades .g3{color:var(--ok)}.grades .g4{color:var(--ink)}
+.showbtn{width:100%;margin-top:12px;padding:13px;font-size:1rem}
+.cartes{margin-top:18px}.cartes summary{cursor:pointer;font-family:var(--f-display);font-size:.82rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink)}
+.cartes ol{padding-left:20px;margin:8px 0 0}.cartes li{margin:0 0 8px}.cartes li span{display:block;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.88rem;z-index:30;max-width:calc(100% - 32px)}
 .offline{font-family:var(--f-mono);font-size:.66rem;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
 </style>
@@ -222,6 +241,7 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
         <input id="q" type="search" placeholder="Rechercher une entité, un signe…" autocomplete="off" aria-label="Rechercher">
       </div>
       <button class="addbtn" id="addbtn" aria-label="Ficher une entité"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ficher</button>
+      <button class="addbtn revbtn" id="revbtn" aria-label="Réviser">Réviser<span class="badge" id="revcount"></span></button>
     </div>
     <div class="chips" id="chips" role="toolbar" aria-label="Surspécialités"></div>
     <div class="chips sub" id="subchips" role="toolbar" aria-label="Familles" hidden></div>
@@ -245,7 +265,7 @@ const SCOLOR = Object.fromEntries(SURSPE);
 const FAMILLES = ["Classification / score","Démarche / orientation","Technique / protocole","Anatomie / mesures","Tumoral","Infectieux","Inflammatoire / auto-immun","Vasculaire","Traumatique","Dégénératif","Congénital / malformatif","Métabolique / toxique","Iatrogène","Autre"];
 const IMGCACHE = {};
 const imgUrl = im => im && (im.url ? im.url : (im.fs && IMGCACHE[im.fs]) || "");
-const COL = {fiches:"rep_fiches", queue:"rep_queue", imgs:"rep_imgs", meta:"rep_meta"};
+const COL = {fiches:"rep_fiches", queue:"rep_queue", imgs:"rep_imgs", meta:"rep_meta", srs:"rep_srs"};
 
 /* theme */
 const THEMES = [["auto","Thème : système"],["light","Thème : clair"],["dark","Thème : sombre"]];
@@ -327,7 +347,7 @@ async function hydrateImgs(){
 }
 function lightbox(src){ $("#lbroot").innerHTML = `<div class="lightbox" data-lb="1"><img src="${esc(src)}" alt=""></div>`; }
 
-const state = {fiches:[], queue:[], config:null, filter:null, fam:null, q:"", open:null, db:null, mcp:null, assets:null, ready:false, lastKick:0, confirmDel:false, rev:false, addKind:"entite", addFiles:[], capFor:null};
+const state = {fiches:[], queue:[], config:null, filter:null, fam:null, q:"", open:null, db:null, mcp:null, assets:null, ready:false, lastKick:0, confirmDel:false, rev:false, addKind:"entite", addFiles:[], capFor:null, mode:null, srs:{}, sess:null};
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/★+/g, m => `<span class="star">${m}</span>`);
@@ -387,9 +407,10 @@ function queueHtml(){
   const items = state.queue.filter(x=>x.status!=="done");
   if(!items.length) return "";
   return `<div class="queue" aria-label="En préparation">` + items.map(x=>{
-    const lbl = x.type==="revise" ? `Correction · ${esc(x.nom)}` : esc(x.nom);
+    const lbl = x.type==="revise" ? `Correction · ${esc(x.nom)}` : x.type==="cartes" ? `Cartes · ${esc(x.nom)}` : x.type==="cartes_lot" ? `Cartes de révision · fiches existantes${x.message?` (${esc(x.message)})`:""}` : esc(x.nom || rpName(x.url) || x.url);
     if(x.status==="error") return `<div class="qitem err"><span class="qn">${lbl}<span class="qmsg">${esc(x.message||"Échec de la rédaction.")}</span></span><button class="linkbtn" data-retry="${esc(x.id)}">Relancer</button><button class="linkbtn" data-drop="${esc(x.id)}">Retirer</button></div>`;
     const s = x.status==="processing" ? "rédaction en cours" : "en file";
+    if(x.type==="cartes_lot") return `<div class="qitem"><span class="pulse"></span><span class="qn">${lbl}</span><span class="qs">${s}</span></div>`;
     return `<div class="qitem"><span class="pulse"></span><span class="qn">${lbl}</span><span class="qs">${s}</span></div>`;
   }).join("") + `</div>`;
 }
@@ -465,6 +486,7 @@ function renderFiche(){
   const ctx = f.contexte ? `<section class="sec ctx"><h3>Croisée où</h3><p style="margin:0">${fmt(f.contexte)}</p></section>` : "";
   const d = s => s ? new Date(s).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}) : "";
   const pendingRev = state.queue.some(x=>x.type==="revise" && x.fiche_id===f.id && x.status!=="done");
+  const pendingCards = state.queue.some(x=>x.type==="cartes" && x.fiche_id===f.id && x.status!=="done");
   main.innerHTML = `
     <button class="back" data-back="1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Répertoire</button>
     <article>
@@ -474,11 +496,13 @@ function renderFiche(){
         ${(f.nom_en||arr(f.synonymes).length)?`<div class="syn">${[f.nom_en,...arr(f.synonymes)].filter(Boolean).map(esc).join(" · ")}</div>`:""}
       </div>
       ${body}
+      ${cartesHtml(f)}
       ${ctx}${src}
       <input id="imgup" type="file" accept="image/*" multiple hidden>
       <div class="actions">
         <label class="btn addhere-btn" for="imgup" data-sec="fin" style="cursor:pointer">Ajouter une image</label>
         <button class="btn ${f.statut==="verifiee"?"":"primary"}" data-verify="1">${f.statut==="verifiee"?"Repasser à vérifier":"Marquer vérifiée"}</button>
+        ${!arr(f.cartes).length?`<button class="btn" data-gencards="1" ${pendingCards?"disabled":""}>${pendingCards?"Cartes en préparation…":"Créer les cartes de révision"}</button>`:""}
         <button class="btn" data-rev="1" ${pendingRev?"disabled":""}>${pendingRev?"Correction en cours…":"Demander une correction"}</button>
         ${state.confirmDel?`<button class="btn dangerfill" data-del="2">Confirmer la suppression</button><button class="btn" data-del="0">Annuler</button>`:`<button class="btn danger" data-del="1">Supprimer</button>`}
         ${state.rev?`<div class="revbox"><div class="field"><label for="revtxt">Ce qu'il faut corriger ou ajouter</label><textarea id="revtxt" placeholder="Ex. ajouter la classification, préciser l'aspect en scintigraphie…"></textarea></div><div class="sheetbtns"><button class="btn" data-rev="0">Annuler</button><button class="btn primary" data-revgo="1">Envoyer</button></div></div>`:""}
@@ -489,13 +513,13 @@ function renderFiche(){
 }
 async function saveImages(f, images){ state.db.collection(COL.fiches).doc(f.id).update({images}).catch(()=>toast("Modification non enregistrée.")); }
 function syncHash(){
-  const want = state.open ? "#"+encodeURIComponent(state.open) : "";
+  const want = state.mode==="review" ? "#reviser" : state.open ? "#"+encodeURIComponent(state.open) : "";
   if((location.hash||"") !== want){ try{ history.pushState(null,"",want || (location.pathname+location.search)); }catch{} }
-  const hb=$("#homebtn"); if(hb) hb.hidden=!state.open;
+  const hb=$("#homebtn"); if(hb) hb.hidden=!state.open && state.mode!=="review";
 }
-function render(){ renderChips(); state.open ? renderFiche() : renderList(); syncHash(); }
-function goHome(){ state.open=null; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); }
-addEventListener("popstate", ()=>{ const h=decodeURIComponent((location.hash||"").slice(1)); state.open=h||null; state.confirmDel=false; state.rev=false; render(); window.scrollTo(0,0); });
+function render(){ renderChips(); state.mode==="review" ? renderReview() : state.open ? renderFiche() : renderList(); syncHash(); updateBadge(); }
+function goHome(){ state.mode=null; state.sess=null; state.open=null; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); }
+addEventListener("popstate", ()=>{ const h=decodeURIComponent((location.hash||"").slice(1)); if(h==="reviser"){ startReview(); return; } state.mode=null; state.sess=null; state.open=h||null; state.confirmDel=false; state.rev=false; render(); window.scrollTo(0,0); });
 
 /* ---------- add sheet ---------- */
 function openSheet(prefill=""){
@@ -504,7 +528,8 @@ function openSheet(prefill=""){
   $("#sheetroot").innerHTML = `<div class="scrim" data-close="1"><form class="sheet" id="addform" role="dialog" aria-modal="true" aria-labelledby="sh">
     <h2 id="sh">Nouvelle fiche</h2>
     <div class="seg" role="group" aria-label="Type de fiche"><button type="button" data-kind="entite" aria-pressed="${!memo}">Entité / pathologie</button><button type="button" data-kind="memo" aria-pressed="${memo}">Classif / thème</button></div>
-    <div class="field"><label for="f-nom">${memo?"Classification, score ou thème":"Entité"}</label><input id="f-nom" required placeholder="${memo?"Ex. Bosniak 2019, classification de Neer, démarche devant une lacune":"Ex. chondroblastome, PRES, maladie de Kienböck"}" value="${esc(prefill)}" autocomplete="off"></div>
+    <div class="field"><label for="f-nom">${memo?"Classification, score ou thème":"Entité"}</label><input id="f-nom" placeholder="${memo?"Ex. Bosniak 2019, classification de Neer, démarche devant une lacune":"Ex. chondroblastome, PRES, maladie de Kienböck"}" value="${esc(prefill)}" autocomplete="off"></div>
+    <div class="field"><label for="f-url">Lien Radiopaedia (facultatif)</label><input id="f-url" type="url" inputmode="url" placeholder="https://radiopaedia.org/articles/… ou /cases/…" autocomplete="off"></div>
     <div class="field"><label for="f-ctx">${memo?"Ce que tu veux dedans (facultatif)":"Contexte (facultatif)"}</label><textarea id="f-ctx" placeholder="${memo?"Ex. avec le tableau des stades et la conduite à tenir":"Ex. cas Radiopaedia, garçon 15 ans, lésion épiphysaire tibiale"}"></textarea></div>
     ${true?`<div class="field"><label for="f-img">Image à exploiter ou à joindre (facultatif)</label><input id="f-img" type="file" accept="image/*" multiple><div class="thumbs" id="f-thumbs"></div></div>`:""}
     <div class="field"><label for="f-ss">Surspécialité (facultatif)</label><select id="f-ss"><option value="">Choix automatique</option>${SURSPE.map(([s])=>`<option>${esc(s)}</option>`).join("")}</select></div>
@@ -515,7 +540,7 @@ function openSheet(prefill=""){
 function closeSheet(){ $("#sheetroot").innerHTML=""; }
 
 function enqueue(item){
-  const id = Date.now().toString(36)+"-"+slug(item.nom).slice(0,40);
+  const id = Date.now().toString(36)+"-"+slug(item.nom || rpName(item.url) || "lien").slice(0,40);
   state.db.collection(COL.queue).doc(id).set({...item, status:"pending", created_at:new Date().toISOString()}).catch(()=>toast("Envoi impossible."));
   return id;
 }
@@ -529,13 +554,19 @@ document.addEventListener("click", async e=>{
   const go = e.target.closest("[data-go]"); if(go){ state.open=go.dataset.go; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); return; }
   const t = e.target.closest("button,[data-close]"); if(!t) return;
   if(t.id==="homebtn"){ goHome(); return; }
+  if(t.id==="revbtn"){ startReview(); window.scrollTo(0,0); return; }
+  if(t.dataset.show){ state.sess.shown=true; renderReview(); return; }
+  if(t.dataset.grade){ gradeCard(+t.dataset.grade); return; }
+  if(t.dataset.tofiche){ const id=t.dataset.tofiche; state.mode=null; state.sess=null; state.open=id; render(); window.scrollTo(0,0); return; }
+  if(t.dataset.again){ startReview(); return; }
+  if(t.dataset.lotgo){ if(!state.queue.some(x=>x.type==="cartes_lot"&&x.status!=="done")) enqueue({type:"cartes_lot", nom:"cartes"}); toast("Demande envoyée : les cartes des fiches existantes arrivent par lots"); renderReview(); return; }
   if(t.id==="themebtn"){ theme = theme==="auto"?"light":theme==="light"?"dark":"auto"; try{ localStorage.setItem("theme",theme); }catch{} applyTheme(); return; }
   if(t.dataset.kind){ const nom=$("#f-nom").value, ctx=$("#f-ctx").value; state.addKind=t.dataset.kind; const keep=state.addFiles; openSheet(nom); state.addFiles=keep; $("#f-ctx").value=ctx; showThumbs(); return; }
   if(t.dataset.close!==undefined && (e.target===t || t.tagName==="BUTTON")){ closeSheet(); return; }
   if(t.id==="addbtn" || t.dataset.add){ if(state.db) openSheet(); return; }
   if(t.dataset.addq){ openSheet(state.q.trim()); return; }
-  if(t.dataset.s!==undefined){ state.filter = t.dataset.s||null; state.fam=null; state.open=null; render(); return; }
-  if(t.dataset.f!==undefined){ state.fam = state.fam===t.dataset.f?null:t.dataset.f; render(); return; }
+  if(t.dataset.s!==undefined){ state.filter = t.dataset.s||null; state.fam=null; state.open=null; if(state.mode==="review") state.sess=null; render(); return; }
+  if(t.dataset.f!==undefined){ state.fam = state.fam===t.dataset.f?null:t.dataset.f; if(state.mode==="review") state.sess=null; render(); return; }
   if(t.dataset.id){ state.open=t.dataset.id; state.confirmDel=false; state.rev=false; render(); window.scrollTo(0,0); return; }
   if(t.dataset.back){ goHome(); return; }
   if(t.dataset.retry){ state.db.collection(COL.queue).doc(t.dataset.retry).update({status:"pending", message:""}).catch(()=>toast("Relance impossible.")); return; }
@@ -550,6 +581,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.del==="1"){ state.confirmDel=true; renderFiche(); return; }
   if(t.dataset.del==="0"){ state.confirmDel=false; renderFiche(); return; }
   if(t.dataset.del==="2"){ state.db.collection(COL.fiches).doc(f.id).delete().catch(()=>toast("Suppression impossible.")); state.open=null; state.confirmDel=false; toast("Fiche supprimée"); render(); return; }
+  if(t.dataset.gencards){ enqueue({type:"cartes", nom:f.nom, fiche_id:f.id}); toast("Cartes demandées"); renderFiche(); return; }
   if(t.dataset.rev==="1"){ state.rev=true; renderFiche(); setTimeout(()=>$("#revtxt")?.focus(),30); return; }
   if(t.dataset.rev==="0"){ state.rev=false; renderFiche(); return; }
   if(t.dataset.revgo){ const txt=$("#revtxt").value.trim(); if(!txt){ $("#revtxt").focus(); return; }
@@ -558,16 +590,19 @@ document.addEventListener("click", async e=>{
 document.addEventListener("submit", async e=>{
   if(e.target.id!=="addform") return;
   e.preventDefault();
-  const nom = $("#f-nom").value.trim(); if(!nom) return;
-  const existing = state.fiches.find(f=>[f.nom,f.nom_en,...arr(f.synonymes)].filter(Boolean).some(n=>norm(n)===norm(nom)));
+  let nom = $("#f-nom").value.trim(); let url = ($("#f-url")?.value||"").trim();
+  if(!url && /^https?:\/\//.test(nom)){ url = nom; nom = ""; }
+  if(!nom && !url){ $("#f-nom").focus(); return; }
+  const guess = nom || rpName(url);
+  const existing = guess && state.fiches.find(f=>[f.nom,f.nom_en,...arr(f.synonymes)].filter(Boolean).some(n=>norm(n)===norm(guess)));
   if(existing){ closeSheet(); state.open=existing.id; render(); toast("Cette entité a déjà sa fiche"); return; }
   const btn = e.target.querySelector("[type=submit]"); btn.disabled=true; btn.textContent="Envoi…";
   try{
     let images = [];
     if(state.addFiles.length){ btn.textContent="Envoi des images…"; images = await uploadImages(state.addFiles); }
-    enqueue({type:"new", kind:state.addKind, nom, contexte:$("#f-ctx").value.trim(), surspe_hint:$("#f-ss").value, images});
+    enqueue({type:"new", kind:state.addKind, nom, url, contexte:$("#f-ctx").value.trim(), surspe_hint:$("#f-ss").value, images});
     closeSheet(); state.q=""; $("#q").value="";
-    toast(navigator.onLine ? "Ajoutée : la fiche arrive au prochain passage (moins d'une heure)" : "Ajoutée hors ligne : envoi dès que le réseau revient");
+    toast(navigator.onLine ? "Ajoutée : la fiche et ses cartes arrivent d'ici quelques minutes" : "Ajoutée hors ligne : envoi dès que le réseau revient");
   }catch(err){ btn.disabled=false; btn.textContent="Lancer la fiche"; toast(err&&err.code==="too_big"?"Image trop lourde.":"Envoi impossible."); }
 });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ if($("#lbroot").innerHTML) $("#lbroot").innerHTML=""; else if($("#sheetroot").innerHTML) closeSheet(); } });
@@ -590,7 +625,7 @@ document.addEventListener("paste", e=>{
   const files=[...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith("image/")); if(!files.length) return;
   if($("#f-img")){ state.addFiles=state.addFiles.concat(files); showThumbs(); e.preventDefault(); }
 });
-$("#q").addEventListener("input", e=>{ state.q=e.target.value; state.open=null; renderList(); });
+$("#q").addEventListener("input", e=>{ state.q=e.target.value; state.open=null; if(state.mode){ state.mode=null; state.sess=null; syncHash(); } renderList(); });
 
 /* ---------- drag & drop des images ---------- */
 let drag=null;
@@ -621,10 +656,129 @@ function endDrag(){
 }
 document.addEventListener("pointerup", endDrag); document.addEventListener("pointercancel", endDrag);
 
+/* ---------- révision espacée (FSRS-4.5) ---------- */
+const W=[0.4872,1.4003,3.7145,13.8206,5.1618,1.2298,0.8975,0.031,1.6474,0.1367,1.0461,2.1072,0.0793,0.3246,1.587,0.2272,2.8755];
+const DECAY=-0.5, FACTOR=19/81, RET=0.9, DAY=864e5, NEW_PER_DAY=15;
+const clampD=d=>Math.min(10,Math.max(1,d));
+const D0=g=>clampD(W[4]-Math.exp(W[5]*(g-1))+1);
+const retr=(t,s)=>Math.pow(1+FACTOR*t/s,DECAY);
+const ivlDays=s=>Math.max(1,Math.round(s/FACTOR*(Math.pow(RET,1/DECAY)-1)));
+function nextState(c,g,now){
+  let s,d; const fresh=!c||!c.reps;
+  if(fresh){ s=W[g-1]; d=D0(g); }
+  else{
+    const t=Math.max(0,(now-c.last)/DAY), r=retr(t,c.s);
+    d=clampD(W[7]*D0(4)+(1-W[7])*(c.d-W[6]*(g-3)));
+    s = g===1 ? Math.min(c.s, W[11]*Math.pow(d,-W[12])*(Math.pow(c.s+1,W[13])-1)*Math.exp(W[14]*(1-r)))
+              : c.s*(Math.exp(W[8])*(11-d)*Math.pow(c.s,-W[9])*(Math.exp(W[10]*(1-r))-1)*(g===2?W[15]:1)*(g===4?W[16]:1)+1);
+  }
+  let days = g===1 ? 0 : ivlDays(s);
+  if(fresh && g<4) days = g===1?0:1;           // nouvelle carte : on la revoit demain
+  const due = g===1 ? now+10*60e3 : now+days*DAY;
+  return {s,d,last:now,due,days,reps:(c?.reps||0)+1,lapses:(c?.lapses||0)+(g===1&&!fresh?1:0),first:c?.first||now};
+}
+const dayKey=t=>new Date(t).toDateString();
+function cardPool(){
+  const out=[];
+  visible().forEach(f=>arr(f.cartes).forEach((c,i)=>{ if(c&&c.q) out.push({key:f.id+"__"+(c.id||("c"+i)), f, c}); }));
+  return out;
+}
+function dueInfo(){
+  const now=Date.now(), pool=cardPool();
+  const due=pool.filter(x=>state.srs[x.key] && state.srs[x.key].due<=now).sort((a,b)=>state.srs[a.key].due-state.srs[b.key].due);
+  const today=dayKey(now);
+  const newToday=Object.values(state.srs).filter(v=>v.first && dayKey(v.first)===today).length;
+  const fresh=pool.filter(x=>!state.srs[x.key]).sort((a,b)=>String(b.f.created_at||"").localeCompare(String(a.f.created_at||""))||String(a.key).localeCompare(String(b.key)));
+  return {pool, due, fresh, newLeft:Math.max(0,NEW_PER_DAY-newToday)};
+}
+function updateBadge(){
+  const b=$("#revcount"); if(!b) return;
+  if(!state.srsReady){ b.textContent=""; return; }
+  const saveF=state.filter, saveFam=state.fam; state.filter=null; state.fam=null;
+  const i=dueInfo(); state.filter=saveF; state.fam=saveFam;
+  const n=i.due.length+Math.min(i.newLeft,i.fresh.length);
+  b.textContent = n ? (n>99?"99+":String(n)) : "";
+}
+function startReview(){
+  state.mode="review"; state.open=null; state.q=""; const qi=$("#q"); if(qi) qi.value="";
+  state.sess=null; render();
+}
+function buildSession(){
+  const i=dueInfo();
+  const items=[...i.due, ...i.fresh.slice(0,i.newLeft)];
+  // mélange léger des nouvelles cartes d'une même fiche pour éviter d'enchaîner les réponses
+  state.sess={items, idx:0, shown:false, done:0, again:0, total:items.length, poolSize:i.pool.length};
+}
+function cardImg(x){
+  const c=x.c; if(!c.img) return "";
+  const im = typeof c.img==="string" ? (arr(x.f.images).find(m=>m.fs===c.img) || {fs:c.img}) : c.img;
+  return `<img class="cimg" src="${esc(imgUrl(im))}" ${im.fs?`data-fs="${esc(im.fs)}"`:""} alt="" data-zoom="1">`;
+}
+const fmtMulti = s => String(s??"").split(/\n+/).map(fmt).join("<br>");
+function ivlLabel(days, g){ if(g===1) return "10 min"; if(days<30) return days+" j"; if(days<365) return Math.round(days/30)+" mois"; return (days/365).toFixed(1).replace(".0","")+" an"; }
+function renderReview(){
+  const main=$("#main");
+  if(!state.ready || !state.srsReady){ main.innerHTML=`<div class="empty"><h2>Chargement…</h2></div>`; return; }
+  if(!state.sess) buildSession();
+  const S=state.sess;
+  const back=`<button class="back" data-back="1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Répertoire</button>`;
+  const scope = state.filter ? ` en ${esc(state.filter)}${state.fam?` › ${esc(state.fam)}`:""}` : "";
+  const withoutCards = state.fiches.filter(f=>!arr(f.cartes).length).length;
+  const lotPending = state.queue.some(x=>x.type==="cartes_lot"&&x.status!=="done");
+  const lot = withoutCards ? `<p style="margin:14px 0 0;color:var(--muted);font-size:.9rem">${withoutCards} fiche${withoutCards>1?"s":""} sans cartes. ${lotPending?"Génération en cours…":`<button class="linkbtn" data-lotgo="1">Créer leurs cartes</button>`}</p>` : "";
+  if(!S.items.length || S.idx>=S.items.length){
+    const i=dueInfo(); const next=i.pool.map(x=>state.srs[x.key]&&state.srs[x.key].due).filter(Boolean).sort((a,b)=>a-b)[0];
+    const msg = !S.poolSize ? `<h2>Pas encore de cartes${scope}</h2><p>Les cartes sont créées avec chaque nouvelle fiche. Ajoute une entité avec « Ficher » (un lien Radiopaedia suffit).</p>`
+      : S.done ? `<h2>Séance terminée</h2><p>${S.done} carte${S.done>1?"s":""} revue${S.done>1?"s":""}${S.again?`, dont ${S.again} à revoir`:""}.${next?` Prochaine révision ${new Date(next).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"short"})}.`:""}</p>`
+      : `<h2>Rien à réviser${scope} pour l'instant</h2><p>${next?`Prochaine carte ${new Date(next).toLocaleString("fr-FR",{weekday:"long",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}.`:""} Le quota de ${NEW_PER_DAY} nouvelles cartes par jour se recharge demain.</p>`;
+    main.innerHTML = back + `<div class="empty">${msg}${S.done&&i.due.length?`<button class="btn primary" data-again="1">Continuer (${i.due.length} carte${i.due.length>1?"s":""})</button>`:""}${lot}</div>`;
+    return;
+  }
+  const x=S.items[S.idx], c=x.c, cur=state.srs[x.key], now=Date.now();
+  const left=S.items.length-S.idx;
+  const color=SCOLOR[x.f.surspe]||"var(--muted)";
+  const grades = [1,2,3,4].map(g=>{ const n=nextState(cur,g,now); return `<button class="g${g}" data-grade="${g}">${["","À revoir","Difficile","Bien","Facile"][g]}<small>${ivlLabel(n.days,g)}</small></button>`; }).join("");
+  main.innerHTML = back + `<div class="rv">
+    <div class="rvtop"><span>${left} restante${left>1?"s":""}${scope}</span><span>${cur?"révision":"nouvelle"}</span></div>
+    <div class="rvbar"><i style="width:${Math.round(100*S.idx/Math.max(1,S.items.length))}%"></i></div>
+    <div class="card">
+      <div class="ss" style="color:${color}">${esc(x.f.surspe||"")}${c.type==="image"||!S.shown?"":` · ${esc(x.f.nom)}`}</div>
+      <div class="qq">${fmtMulti(c.q)}</div>
+      ${cardImg(x)}
+      ${S.shown?`<div class="rr">${fmtMulti(c.r)}</div><button class="tofiche" data-tofiche="${esc(x.f.id)}">Ouvrir la fiche « ${esc(x.f.nom)} » ›</button>`:""}
+    </div>
+    ${S.shown?`<div class="grades">${grades}</div>`:`<button class="btn primary showbtn" data-show="1">Voir la réponse</button>`}
+  </div>`;
+  hydrateImgs();
+}
+function gradeCard(g){
+  const S=state.sess; if(!S) return; const x=S.items[S.idx]; if(!x) return;
+  const now=Date.now(); const n=nextState(state.srs[x.key],g,now);
+  const rec={fiche_id:x.f.id, card:x.c.id||"", s:n.s, d:n.d, last:n.last, due:n.due, reps:n.reps, lapses:n.lapses, first:n.first};
+  state.srs[x.key]=rec;
+  state.db.collection(COL.srs).doc(x.key).set(rec).catch(()=>toast("Progression non enregistrée."));
+  S.done++; if(g===1){ S.again++; S.items.splice(Math.min(S.items.length,S.idx+4),0,x); }
+  S.idx++; S.shown=false; renderReview(); updateBadge(); window.scrollTo(0,0);
+}
+document.addEventListener("keydown", e=>{
+  if(state.mode!=="review"||!state.sess||/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")) return;
+  if(e.key===" "&&!state.sess.shown){ e.preventDefault(); state.sess.shown=true; renderReview(); }
+  else if(state.sess.shown && ["1","2","3","4"].includes(e.key)) gradeCard(+e.key);
+});
+function cartesHtml(f){
+  const cs=arr(f.cartes); if(!cs.length) return "";
+  return `<details class="cartes"><summary>Cartes de révision (${cs.length})</summary><ol>${cs.map(c=>`<li>${fmt(c.q)}<span>${fmt(c.r)}</span></li>`).join("")}</ol></details>`;
+}
+function rpName(u){
+  const m=String(u||"").match(/radiopaedia\.org\/(?:articles|cases)\/([^/?#]+)/i); if(!m) return "";
+  const t=decodeURIComponent(m[1]).replace(/-\d+$/,"").replace(/-/g," ").trim();
+  return t ? t.charAt(0).toUpperCase()+t.slice(1) : "";
+}
+
 /* ---------- boot ---------- */
 const FIREBASE_CONFIG={apiKey:"AIzaSyD6XQRZYwReCAnvPU6ZfhjHwIXvRrgmScA",authDomain:"kit-msk.firebaseapp.com",projectId:"kit-msk",storageBucket:"kit-msk.firebasestorage.app",messagingSenderId:"507180323681",appId:"1:507180323681:web:f7b3f350b179a60dd22b20"};
 applyTheme();
-try{ const h=decodeURIComponent((location.hash||"").slice(1)); if(h) state.open=h; }catch{}
+try{ const h=decodeURIComponent((location.hash||"").slice(1)); if(h==="reviser") state.mode="review"; else if(h) state.open=h; }catch{}
 render();
 function netState(){ const o=$("#offline"); if(o) o.hidden = navigator.onLine; }
 addEventListener("online",netState); addEventListener("offline",netState); netState();
@@ -652,8 +806,9 @@ async function seedIfNeeded(db){
   const db = firebase.firestore();
   db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   state.db = db;
-  db.collection(COL.fiches).onSnapshot(s=>{ state.fiches = s.docs.map(d=>({id:d.id,...d.data()})); state.ready=true; render(); }, e=>{ console.error(e); state.ready=true; render(); toast("Lecture des fiches impossible : "+(e&&e.code||"erreur")); });
-  db.collection(COL.queue).onSnapshot(s=>{ state.queue = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))); state.open ? renderFiche() : renderList(); }, ()=>{});
+  db.collection(COL.fiches).onSnapshot(s=>{ state.fiches = s.docs.map(d=>({id:d.id,...d.data()})); state.ready=true; if(state.mode==="review" && state.sess){ updateBadge(); renderChips(); } else render(); }, e=>{ console.error(e); state.ready=true; render(); toast("Lecture des fiches impossible : "+(e&&e.code||"erreur")); });
+  db.collection(COL.queue).onSnapshot(s=>{ state.queue = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))); if(state.mode!=="review") state.open ? renderFiche() : renderList(); }, ()=>{});
+  db.collection(COL.srs).onSnapshot(s=>{ state.srs = Object.fromEntries(s.docs.map(d=>[d.id,d.data()])); state.srsReady=true; if(state.mode==="review" && !state.sess) renderReview(); updateBadge(); }, ()=>{ state.srsReady=true; });
   seedIfNeeded(db);
 })();
 </script>
