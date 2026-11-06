@@ -411,7 +411,7 @@ function statusPill(f){return f.statut==="verifiee"?`<span class="st ok">vérifi
 function queueHtml(){
   const sugg = state.queue.filter(x=>x.status==="suggestion");
   const sHtml = sugg.map(x=>`<div class="sugg"><div><small>Gamme proposée</small><b>${esc(x.nom)}</b>${arr(x.entites_noms).length?`<span>${arr(x.entites_noms).map(esc).join(" · ")}</span>`:""}</div><div class="sb"><button class="btn primary" data-sugok="${esc(x.id)}">Créer</button><button class="btn" data-sugno="${esc(x.id)}">Ignorer</button></div></div>`).join("");
-  const items = state.queue.filter(x=>!["done","suggestion","ignored"].includes(x.status));
+  const items = state.queue.filter(x=>x.app!=="quotidien" && !["done","suggestion","ignored"].includes(x.status));
   if(!items.length) return sHtml;
   return `<div class="queue" aria-label="En préparation">` + items.map(x=>{
     const lbl = x.type==="revise" ? `Correction · ${esc(x.nom)}` : x.type==="cartes" ? `Cartes · ${esc(x.nom)}` : x.type==="cartes_lot" ? `Cartes de révision · fiches existantes${x.message?` (${esc(x.message)})`:""}` : esc(x.nom || rpName(x.url) || x.url);
