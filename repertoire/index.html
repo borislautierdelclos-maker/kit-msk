@@ -220,7 +220,7 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
 .card .rr{border-top:1px dashed var(--line);padding-top:12px;font-size:1.02rem;line-height:1.45}
 .card .cimg{display:block;width:100%;max-height:52vh;object-fit:contain;background:#000;border-radius:10px;cursor:zoom-in}
 .card .tofiche{justify-self:start;border:0;background:none;color:var(--ink);font-weight:700;padding:0}
-.grades{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:6px;margin-top:12px}
+.grades{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
 .grades button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 4px;display:grid;gap:2px;font-weight:700;font-size:.88rem}
 .grades button small{font-weight:400;color:var(--muted);font-size:.74rem}
 .grades .g1{color:var(--danger)}.grades .g2{color:var(--warn)}.grades .g3{color:var(--ok)}.grades .g4{color:var(--ink)}
@@ -674,9 +674,10 @@ function nextState(c,g,now){
               : c.s*(Math.exp(W[8])*(11-d)*Math.pow(c.s,-W[9])*(Math.exp(W[10]*(1-r))-1)*(g===2?W[15]:1)*(g===4?W[16]:1)+1);
   }
   let days = g===1 ? 0 : ivlDays(s);
-  if(fresh) days = g===1 ? 0 : g===4 ? 3 : 1;     // nouvelle carte : revue demain (ou dans 3 j si évidente)
-  const due = g===1 ? now+10*60e3 : now+days*DAY;
-  return {s,d,last:now,due,days,reps:(c?.reps||0)+1,lapses:(c?.lapses||0)+(g===1&&!fresh?1:0),first:c?.first||now};
+  if(fresh) days = [0,0,0,1,4][g];               // étapes d'apprentissage façon Anki : 10 min / 6 min (même séance) / 1 j / 4 j
+  const soon = g===1 || (fresh && g===2);
+  const due = soon ? now+(g===1?10:6)*60e3 : now+days*DAY;
+  return {s,d,last:now,due,days,soon,reps:(c?.reps||0)+1,lapses:(c?.lapses||0)+(g===1&&!fresh?1:0),first:c?.first||now};
 }
 const dayKey=t=>new Date(t).toDateString();
 function cardPool(){
@@ -716,7 +717,7 @@ function cardImg(x){
   return `<img class="cimg" src="${esc(imgUrl(im))}" ${im.fs?`data-fs="${esc(im.fs)}"`:""} alt="" data-zoom="1">`;
 }
 const fmtMulti = s => String(s??"").split(/\n+/).map(fmt).join("<br>");
-function ivlLabel(days, g){ if(g===1) return "10 min"; if(days<30) return days+" j"; if(days<365) return Math.round(days/30)+" mois"; return (days/365).toFixed(1).replace(".0","")+" an"; }
+function ivlLabel(days, g, soon){ if(soon) return g===1?"10 min":"6 min"; if(days<30) return days+" j"; if(days<365) return Math.round(days/30)+" mois"; return (days/365).toFixed(1).replace(".0","")+" an"; }
 function renderReview(){
   const main=$("#main");
   if(!state.ready || !state.srsReady){ main.innerHTML=`<div class="empty"><h2>Chargement…</h2></div>`; return; }
@@ -738,7 +739,7 @@ function renderReview(){
   const x=S.items[S.idx], c=x.c, cur=state.srs[x.key], now=Date.now();
   const left=S.items.length-S.idx;
   const color=SCOLOR[x.f.surspe]||"var(--muted)";
-  const grades = [[1,"Pas trouvé"],[3,"Trouvé en analysant / partiel"],[4,"Évident"]].map(([g,l])=>{ const n=nextState(cur,g,now); return `<button class="g${g}" data-grade="${g}">${l}<small>${ivlLabel(n.days,g)}</small></button>`; }).join("");
+  const grades = [[1,"Pas trouvé"],[2,"Partiellement trouvé"],[3,"Trouvé en analysant"],[4,"Évident"]].map(([g,l])=>{ const n=nextState(cur,g,now); return `<button class="g${g}" data-grade="${g}">${l}<small>${ivlLabel(n.days,g,n.soon)}</small></button>`; }).join("");
   main.innerHTML = back + `<div class="rv">
     <div class="rvtop"><span>${left} restante${left>1?"s":""}${scope}</span><span>${cur?"révision":"nouvelle"}</span></div>
     <div class="rvbar"><i style="width:${Math.round(100*S.idx/Math.max(1,S.items.length))}%"></i></div>
@@ -758,13 +759,13 @@ function gradeCard(g){
   const rec={fiche_id:x.f.id, card:x.c.id||"", s:n.s, d:n.d, last:n.last, due:n.due, reps:n.reps, lapses:n.lapses, first:n.first};
   state.srs[x.key]=rec;
   state.db.collection(COL.srs).doc(x.key).set(rec).catch(()=>toast("Progression non enregistrée."));
-  S.done++; if(g===1){ S.again++; S.items.splice(Math.min(S.items.length,S.idx+4),0,x); }
+  S.done++; if(n.soon){ if(g===1) S.again++; S.items.splice(Math.min(S.items.length,S.idx+(g===1?4:8)),0,x); }
   S.idx++; S.shown=false; renderReview(); updateBadge(); window.scrollTo(0,0);
 }
 document.addEventListener("keydown", e=>{
   if(state.mode!=="review"||!state.sess||/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")) return;
   if(e.key===" "&&!state.sess.shown){ e.preventDefault(); state.sess.shown=true; renderReview(); }
-  else if(state.sess.shown && ["1","2","3"].includes(e.key)) gradeCard([1,3,4][+e.key-1]);
+  else if(state.sess.shown && ["1","2","3","4"].includes(e.key)) gradeCard(+e.key);
 });
 function cartesHtml(f){
   const cs=arr(f.cartes); if(!cs.length) return "";
