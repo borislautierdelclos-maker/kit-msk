@@ -7,6 +7,8 @@ Usage :
   fs.py update <collection> <id> '<json>'  (fusionne les champs donnés)
   fs.py delete <collection> <id>
   fs.py getimg <id> <out.webp>             (image stockée dans rep_imgs)
+  fs.py putimg <fichier.jpg|.webp|.png>    -> stocke l'image dans rep_imgs, affiche son id
+  fs.py updatefile <collection> <id> <file.json> (fusionne les champs du fichier)
 Collections : rep_fiches, rep_queue, rep_imgs, rep_meta
 """
 import sys, json, base64, urllib.request, urllib.parse
@@ -92,6 +94,24 @@ def main():
         b64 = d["data"].split(",", 1)[1]
         open(a[2], "wb").write(base64.b64decode(b64))
         print(a[2])
+    elif cmd == "putimg":
+        import os, time, random, string
+        raw = open(a[1], "rb").read()
+        if len(raw) > 700000:
+            sys.exit("image trop lourde (> 700 Ko) : réduis-la")
+        ext = os.path.splitext(a[1])[1].lower().lstrip(".")
+        mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}.get(ext, "image/jpeg")
+        iid = (format(int(time.time() * 1000), "x") + "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(5)))
+        data = "data:" + mime + ";base64," + base64.b64encode(raw).decode()
+        from datetime import datetime, timezone
+        req("PATCH", u("rep_imgs", iid), {"fields": {"data": enc(data), "created_at": enc(datetime.now(timezone.utc).isoformat())}})
+        print(iid)
+    elif cmd == "updatefile":
+        data = json.load(open(a[3]))
+        data.pop("id", None)
+        req("PATCH", u(a[1], a[2], {"updateMask.fieldPaths": list(data.keys())}),
+            {"fields": {k: enc(v) for k, v in data.items()}})
+        print("ok")
     else:
         print(__doc__)
 
