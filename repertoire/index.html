@@ -512,6 +512,7 @@ function renderFiche(){
       <div class="actions">
         <label class="btn addhere-btn" for="imgup" data-sec="fin" style="cursor:pointer">Ajouter une image</label>
         <button class="btn ${f.statut==="verifiee"?"":"primary"}" data-verify="1">${f.statut==="verifiee"?"Repasser à vérifier":"Marquer vérifiée"}</button>
+        ${arr(f.cartes).length?`<button class="btn primary" data-testfiche="1">Me tester sur cette fiche (${arr(f.cartes).length})</button>`:""}
         ${!arr(f.cartes).length?`<button class="btn" data-gencards="1" ${pendingCards?"disabled":""}>${pendingCards?"Cartes en préparation…":"Créer les cartes de révision"}</button>`:""}
         <button class="btn" data-rev="1" ${pendingRev?"disabled":""}>${pendingRev?"Correction en cours…":"Demander une correction"}</button>
         ${state.confirmDel?`<button class="btn dangerfill" data-del="2">Confirmer la suppression</button><button class="btn" data-del="0">Annuler</button>`:`<button class="btn danger" data-del="1">Supprimer</button>`}
@@ -528,7 +529,7 @@ function syncHash(){
   const hb=$("#homebtn"); if(hb) hb.hidden=!state.open && state.mode!=="review";
 }
 function render(){ renderChips(); state.mode==="review" ? renderReview() : state.open ? renderFiche() : renderList(); syncHash(); updateBadge(); }
-function goHome(){ state.mode=null; state.sess=null; state.open=null; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); }
+function goHome(){ state.mode=null; state.sess=null; state.sessFiche=null; state.open=null; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); }
 addEventListener("popstate", ()=>{ const h=decodeURIComponent((location.hash||"").slice(1)); if(h==="reviser"){ startReview(); return; } state.mode=null; state.sess=null; state.open=h||null; state.confirmDel=false; state.rev=false; render(); window.scrollTo(0,0); });
 
 /* ---------- add sheet ---------- */
@@ -593,6 +594,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.del==="1"){ state.confirmDel=true; renderFiche(); return; }
   if(t.dataset.del==="0"){ state.confirmDel=false; renderFiche(); return; }
   if(t.dataset.del==="2"){ state.db.collection(COL.fiches).doc(f.id).delete().catch(()=>toast("Suppression impossible.")); state.open=null; state.confirmDel=false; toast("Fiche supprimée"); render(); return; }
+  if(t.dataset.testfiche){ startReview(f.id); window.scrollTo(0,0); return; }
   if(t.dataset.gencards){ enqueue({type:"cartes", nom:f.nom, fiche_id:f.id}); toast("Cartes demandées"); renderFiche(); return; }
   if(t.dataset.rev==="1"){ state.rev=true; renderFiche(); setTimeout(()=>$("#revtxt")?.focus(),30); return; }
   if(t.dataset.rev==="0"){ state.rev=false; renderFiche(); return; }
@@ -755,11 +757,18 @@ function updateBadge(){
   const n=i.due.length+Math.min(i.newLeft,i.fresh.length);
   b.textContent = n ? (n>99?"99+":String(n)) : "";
 }
-function startReview(){
+function startReview(ficheId){
+  state.sessFiche = typeof ficheId==="string" ? ficheId : null;
   state.mode="review"; state.open=null; state.q=""; const qi=$("#q"); if(qi) qi.value="";
   state.sess=null; render();
 }
 function buildSession(){
+  if(state.sessFiche){
+    const f=state.fiches.find(x=>x.id===state.sessFiche);
+    const items=f?arr(f.cartes).map((c,i)=>({key:f.id+"__"+(c.id||("c"+i)), f, c})).filter(x=>x.c&&x.c.q):[];
+    state.sess={items, idx:0, shown:false, done:0, again:0, total:items.length, poolSize:items.length, fiche:f};
+    return;
+  }
   const i=dueInfo();
   const items=[...i.due, ...i.fresh.slice(0,i.newLeft)];
   // mélange léger des nouvelles cartes d'une même fiche pour éviter d'enchaîner les réponses
@@ -778,10 +787,14 @@ function renderReview(){
   if(!state.sess) buildSession();
   const S=state.sess;
   const back=`<button class="back" data-back="1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Répertoire</button>`;
-  const scope = state.filter ? ` en ${esc(state.filter)}${state.fam?` › ${esc(state.fam)}`:""}` : "";
+  const scope = state.sessFiche ? ` · ${esc(state.sess?.fiche?.nom||"")}` : state.filter ? ` en ${esc(state.filter)}${state.fam?` › ${esc(state.fam)}`:""}` : "";
   const withoutCards = state.fiches.filter(f=>!arr(f.cartes).length).length;
   const lotPending = state.queue.some(x=>x.type==="cartes_lot"&&x.status!=="done");
   const lot = withoutCards ? `<p style="margin:14px 0 0;color:var(--muted);font-size:.9rem">${withoutCards} fiche${withoutCards>1?"s":""} sans cartes. ${lotPending?"Génération en cours…":`<button class="linkbtn" data-lotgo="1">Créer leurs cartes</button>`}</p>` : "";
+  if(state.sessFiche && S.idx>=S.items.length && S.fiche){
+    main.innerHTML = back + `<div class="empty"><h2>Fiche « ${esc(S.fiche.nom)} » testée</h2><p>${S.done} réponse${S.done>1?"s":""}${S.again?`, dont ${S.again} à revoir`:""}. Les cartes reviendront d'elles-mêmes dans « Réviser » au bon moment.</p><button class="btn primary" data-tofiche="${esc(S.fiche.id)}">Retour à la fiche</button> <button class="btn" data-again="1">Réviser le reste du jour</button></div>`;
+    return;
+  }
   if(!S.items.length || S.idx>=S.items.length){
     const i=dueInfo(); const next=i.pool.map(x=>state.srs[x.key]&&state.srs[x.key].due).filter(Boolean).sort((a,b)=>a-b)[0];
     const msg = !S.poolSize ? `<h2>Pas encore de cartes${scope}</h2><p>Les cartes sont créées avec chaque nouvelle fiche. Ajoute une entité avec « Ficher » (un lien Radiopaedia suffit).</p>`
