@@ -511,7 +511,7 @@ function renderFiche(){
       <input id="imgup" type="file" accept="image/*" multiple hidden>
       <div class="actions">
         <label class="btn addhere-btn" for="imgup" data-sec="fin" style="cursor:pointer">Ajouter une image</label>
-        <button class="btn ${f.statut==="verifiee"?"":"primary"}" data-verify="1">${f.statut==="verifiee"?"Repasser à vérifier":"Marquer vérifiée"}</button>
+        <button class="btn ${f.statut==="verifiee"?"":"primary"}" data-verify="1">${f.statut==="verifiee"?"Repasser à vérifier":"Vérifiée : l'ajouter à la révision"}</button>
         ${arr(f.cartes).length?`<button class="btn primary" data-testfiche="1">Me tester sur cette fiche (${arr(f.cartes).length})</button>`:""}
         ${!arr(f.cartes).length?`<button class="btn" data-gencards="1" ${pendingCards?"disabled":""}>${pendingCards?"Cartes en préparation…":"Créer les cartes de révision"}</button>`:""}
         <button class="btn" data-rev="1" ${pendingRev?"disabled":""}>${pendingRev?"Correction en cours…":"Demander une correction"}</button>
@@ -570,6 +570,8 @@ document.addEventListener("click", async e=>{
   if(t.id==="revbtn"){ startReview(); window.scrollTo(0,0); return; }
   if(t.dataset.show){ state.sess.shown=true; renderReview(); return; }
   if(t.dataset.grade){ gradeCard(+t.dataset.grade); return; }
+  if(t.dataset.cut==="1"){ state.sess.confirmCut=true; renderReview(); return; }
+  if(t.dataset.cut==="2"){ const S=state.sess, x=S.items[S.idx]; cutCard(x.f,x.c); S.items=S.items.filter((y,j)=>j<=S.idx||y.key!==x.key); S.items.splice(S.idx,1); S.shown=false; S.confirmCut=false; toast("Carte supprimée"); renderReview(); updateBadge(); return; }
   if(t.dataset.tofiche){ const id=t.dataset.tofiche; state.mode=null; state.sess=null; state.open=id; render(); window.scrollTo(0,0); return; }
   if(t.dataset.again){ startReview(); return; }
   if(t.dataset.lotgo){ if(!state.queue.some(x=>x.type==="cartes_lot"&&x.status!=="done")) enqueue({type:"cartes_lot", nom:"cartes"}); toast("Demande envoyée : les cartes des fiches existantes arrivent par lots"); renderReview(); return; }
@@ -586,7 +588,8 @@ document.addEventListener("click", async e=>{
   if(t.dataset.drop){ state.db.collection(COL.queue).doc(t.dataset.drop).delete().catch(()=>toast("Suppression impossible.")); return; }
   const f = state.fiches.find(x=>x.id===state.open);
   if(!f) return;
-  if(t.dataset.verify){ state.db.collection(COL.fiches).doc(f.id).update({statut: f.statut==="verifiee"?"a_verifier":"verifiee"}).catch(()=>toast("Modification impossible.")); return; }
+  if(t.dataset.verify){ const v=f.statut!=="verifiee"; state.db.collection(COL.fiches).doc(f.id).update(v?{statut:"verifiee",verified_at:new Date().toISOString()}:{statut:"a_verifier"}).catch(()=>toast("Modification impossible."));
+    const n=arr(f.cartes).length; toast(v ? (n?`Fiche bossée : ses ${n} cartes entrent en révision`:"Fiche vérifiée") : "Fiche repassée à vérifier : plus de nouvelles cartes"); return; }
   if(t.dataset.size){ const i=+t.dataset.i; const ims=arr(f.images).map(x=>({...x})); ims[i].size=t.dataset.size; saveImages(f,ims); return; }
   if(t.dataset.cap!==undefined){ state.capFor=+t.dataset.cap; renderFiche(); setTimeout(()=>$("#capin")?.focus(),30); return; }
   if(t.dataset.capsave!==undefined){ const i=+t.dataset.capsave; const ims=arr(f.images).map(x=>({...x})); ims[i].legende=$("#capin").value.trim(); state.capFor=null; try{ await saveImages(f,ims); }catch{ toast("Légende non enregistrée."); } renderFiche(); return; }
@@ -594,6 +597,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.del==="1"){ state.confirmDel=true; renderFiche(); return; }
   if(t.dataset.del==="0"){ state.confirmDel=false; renderFiche(); return; }
   if(t.dataset.del==="2"){ state.db.collection(COL.fiches).doc(f.id).delete().catch(()=>toast("Suppression impossible.")); state.open=null; state.confirmDel=false; toast("Fiche supprimée"); render(); return; }
+  if(t.dataset.cutf!==undefined){ const c=arr(f.cartes)[+t.dataset.cutf]; if(c){ cutCard(f,c); state.cartesOpen=true; toast("Carte supprimée"); renderFiche(); state.cartesOpen=false; } return; }
   if(t.dataset.testfiche){ startReview(f.id); window.scrollTo(0,0); return; }
   if(t.dataset.gencards){ enqueue({type:"cartes", nom:f.nom, fiche_id:f.id}); toast("Cartes demandées"); renderFiche(); return; }
   if(t.dataset.rev==="1"){ state.rev=true; renderFiche(); setTimeout(()=>$("#revtxt")?.focus(),30); return; }
@@ -746,7 +750,7 @@ function dueInfo(){
   const due=pool.filter(x=>state.srs[x.key] && state.srs[x.key].due<=now).sort((a,b)=>state.srs[a.key].due-state.srs[b.key].due);
   const today=dayKey(now);
   const newToday=Object.values(state.srs).filter(v=>v.first && dayKey(v.first)===today).length;
-  const fresh=pool.filter(x=>!state.srs[x.key]).sort((a,b)=>String(b.f.created_at||"").localeCompare(String(a.f.created_at||""))||String(a.key).localeCompare(String(b.key)));
+  const fresh=pool.filter(x=>!state.srs[x.key] && x.f.statut==="verifiee").sort((a,b)=>String(b.f.verified_at||b.f.created_at||"").localeCompare(String(a.f.verified_at||a.f.created_at||""))||String(a.key).localeCompare(String(b.key)));
   return {pool, due, fresh, newLeft:Math.max(0,NEW_PER_DAY-newToday)};
 }
 function updateBadge(){
@@ -799,14 +803,14 @@ function renderReview(){
     const i=dueInfo(); const next=i.pool.map(x=>state.srs[x.key]&&state.srs[x.key].due).filter(Boolean).sort((a,b)=>a-b)[0];
     const msg = !S.poolSize ? `<h2>Pas encore de cartes${scope}</h2><p>Les cartes sont créées avec chaque nouvelle fiche. Ajoute une entité avec « Ficher » (un lien Radiopaedia suffit).</p>`
       : S.done ? `<h2>Séance terminée</h2><p>${S.done} carte${S.done>1?"s":""} revue${S.done>1?"s":""}${S.again?`, dont ${S.again} à revoir`:""}.${next?` Prochaine révision ${new Date(next).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}.`:""}</p>`
-      : `<h2>Rien à réviser${scope} pour l'instant</h2><p>${next?`Prochaine carte ${new Date(next).toLocaleString("fr-FR",{weekday:"long",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}.`:""} Le quota de ${NEW_PER_DAY} nouvelles cartes par jour se recharge demain.</p>`;
+      : `<h2>Rien à réviser${scope} pour l'instant</h2><p>Seules les fiches marquées vérifiées entrent en révision. ${next?`Prochaine carte ${new Date(next).toLocaleString("fr-FR",{weekday:"long",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}.`:""} Le quota de ${NEW_PER_DAY} nouvelles cartes par jour se recharge demain.</p>`;
     main.innerHTML = back + `<div class="empty">${msg}${S.done&&i.due.length?`<button class="btn primary" data-again="1">Continuer (${i.due.length} carte${i.due.length>1?"s":""})</button>`:""}${lot}</div>`;
     return;
   }
   const x=S.items[S.idx], c=x.c, cur=state.srs[x.key], now=Date.now();
   const left=S.items.length-S.idx;
   const color=SCOLOR[x.f.surspe]||"var(--muted)";
-  const grades = [[1,"Pas trouvé"],[2,"Partiellement trouvé"],[3,"Trouvé en analysant"],[4,"Évident"]].map(([g,l])=>{ const n=nextState(cur,g,now); return `<button class="g${g}" data-grade="${g}">${l}<small>${ivlLabel(n.days,g,n.soon)}</small></button>`; }).join("");
+  const grades = [[1,"Pas trouvé"],[2,"Partiellement trouvé"],[3,"Trouvé"],[4,"Évident"]].map(([g,l])=>{ const n=nextState(cur,g,now); return `<button class="g${g}" data-grade="${g}">${l}<small>${ivlLabel(n.days,g,n.soon)}</small></button>`; }).join("");
   main.innerHTML = back + `<div class="rv">
     <div class="rvtop"><span>${left} restante${left>1?"s":""}${scope}</span><span>${cur?"révision":"nouvelle"}</span></div>
     <div class="rvbar"><i style="width:${Math.round(100*S.idx/Math.max(1,S.items.length))}%"></i></div>
@@ -814,11 +818,19 @@ function renderReview(){
       <div class="ss" style="color:${color}">${esc(x.f.surspe||"")}${c.type==="image"||!S.shown?"":` · ${esc(x.f.nom)}`}</div>
       <div class="qq">${fmtMulti(c.q)}</div>
       ${cardImg(x)}
-      ${S.shown?`<div class="rr">${fmtMulti(c.r)}</div><button class="tofiche" data-tofiche="${esc(x.f.id)}">Ouvrir la fiche « ${esc(x.f.nom)} » ›</button>`:""}
+      ${S.shown?`<div class="rr">${fmtMulti(c.r)}</div><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="tofiche" data-tofiche="${esc(x.f.id)}">Ouvrir la fiche « ${esc(x.f.nom)} » ›</button>${S.confirmCut?`<button class="linkbtn" data-cut="2" style="color:var(--danger);font-weight:700">Confirmer la suppression</button>`:`<button class="linkbtn" data-cut="1" style="color:var(--muted)">Supprimer cette carte</button>`}</div>`:""}
     </div>
     ${S.shown?`<div class="grades">${grades}</div>`:`<button class="btn primary showbtn" data-show="1">Voir la réponse</button>`}
   </div>`;
   hydrateImgs();
+}
+function cutCard(f, c){
+  const key=f.id+"__"+(c.id||"");
+  const cartes=arr(f.cartes).filter(x=>x!==c && !(c.id && x.id===c.id));
+  f.cartes=cartes;
+  state.db.collection(COL.fiches).doc(f.id).update({cartes}).catch(()=>toast("Suppression non enregistrée."));
+  state.db.collection(COL.srs).doc(key).delete().catch(()=>{}); delete state.srs[key];
+  state.db.collection(COL.meta).doc("cartes_rejetees").set({items:firebase.firestore.FieldValue.arrayUnion({fiche:f.nom, q:c.q, r:c.r||"", at:new Date().toISOString()})},{merge:true}).catch(()=>{});
 }
 function gradeCard(g){
   const S=state.sess; if(!S) return; const x=S.items[S.idx]; if(!x) return;
@@ -827,7 +839,7 @@ function gradeCard(g){
   state.srs[x.key]=rec;
   state.db.collection(COL.srs).doc(x.key).set(rec).catch(()=>toast("Progression non enregistrée."));
   S.done++; if(n.soon){ if(g===1) S.again++; S.items.splice(Math.min(S.items.length,S.idx+(g===1?4:8)),0,x); }
-  S.idx++; S.shown=false; renderReview(); updateBadge(); window.scrollTo(0,0);
+  S.idx++; S.shown=false; S.confirmCut=false; renderReview(); updateBadge(); window.scrollTo(0,0);
 }
 document.addEventListener("keydown", e=>{
   if(state.mode!=="review"||!state.sess||/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")) return;
@@ -844,7 +856,7 @@ function linkedHtml(f){
 }
 function cartesHtml(f){
   const cs=arr(f.cartes); if(!cs.length) return "";
-  return `<details class="cartes"><summary>Cartes de révision (${cs.length})</summary><ol>${cs.map(c=>`<li>${fmt(c.q)}<span>${fmt(c.r)}</span></li>`).join("")}</ol></details>`;
+  return `<details class="cartes"${state.cartesOpen?" open":""}><summary>Cartes de révision (${cs.length})</summary><ol>${cs.map((c,i)=>`<li>${fmt(c.q)}<span>${fmt(c.r)}</span><button class="linkbtn" data-cutf="${i}" style="color:var(--muted)">Supprimer</button></li>`).join("")}</ol></details>`;
 }
 function rpName(u){
   const m=String(u||"").match(/radiopaedia\.org\/(?:articles|cases)\/([^/?#]+)/i); if(!m) return "";
