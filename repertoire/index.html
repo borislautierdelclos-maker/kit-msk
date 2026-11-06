@@ -404,12 +404,12 @@ function renderChips(){
 }
 function rowHtml(f){
   const k = (f.cle||"").replace(/\*\*/g,"");
-  return `<button class="row" data-id="${esc(f.id)}"><span class="n">${esc(f.nom)}${f.type==="memo"?'<span class="kind">mémo</span>':f.type==="comparatif"?'<span class="kind">comparatif</span>':""}</span>${statusPill(f)}<span class="k">${esc(k)}</span></button>`;
+  return `<button class="row" data-id="${esc(f.id)}"><span class="n">${esc(f.nom)}${f.type==="memo"?'<span class="kind">mémo</span>':f.type==="comparatif"?'<span class="kind">gamme</span>':""}</span>${statusPill(f)}<span class="k">${esc(k)}</span></button>`;
 }
 function statusPill(f){return f.statut==="verifiee"?`<span class="st ok">vérifiée</span>`:`<span class="st av">à vérifier</span>`}
 function queueHtml(){
   const sugg = state.queue.filter(x=>x.status==="suggestion");
-  const sHtml = sugg.map(x=>`<div class="sugg"><div><small>Comparatif proposé</small><b>${esc(x.nom)}</b>${arr(x.entites_noms).length?`<span>${arr(x.entites_noms).map(esc).join(" · ")}</span>`:""}</div><div class="sb"><button class="btn primary" data-sugok="${esc(x.id)}">Créer</button><button class="btn" data-sugno="${esc(x.id)}">Ignorer</button></div></div>`).join("");
+  const sHtml = sugg.map(x=>`<div class="sugg"><div><small>Gamme proposée</small><b>${esc(x.nom)}</b>${arr(x.entites_noms).length?`<span>${arr(x.entites_noms).map(esc).join(" · ")}</span>`:""}</div><div class="sb"><button class="btn primary" data-sugok="${esc(x.id)}">Créer</button><button class="btn" data-sugno="${esc(x.id)}">Ignorer</button></div></div>`).join("");
   const items = state.queue.filter(x=>!["done","suggestion","ignored"].includes(x.status));
   if(!items.length) return sHtml;
   return `<div class="queue" aria-label="En préparation">` + items.map(x=>{
@@ -561,7 +561,7 @@ document.addEventListener("click", async e=>{
   const go = e.target.closest("[data-go]"); if(go){ state.open=go.dataset.go; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); return; }
   const t = e.target.closest("button,[data-close]"); if(!t) return;
   if(t.id==="homebtn"){ goHome(); return; }
-  if(t.dataset.sugok){ state.db.collection(COL.queue).doc(t.dataset.sugok).update({status:"pending"}).catch(()=>toast("Impossible.")); toast("Comparatif demandé"); return; }
+  if(t.dataset.sugok){ state.db.collection(COL.queue).doc(t.dataset.sugok).update({status:"pending"}).catch(()=>toast("Impossible.")); toast("Gamme demandée"); return; }
   if(t.dataset.sugno){ state.db.collection(COL.queue).doc(t.dataset.sugno).update({status:"ignored"}).catch(()=>toast("Impossible.")); return; }
   if(t.id==="revbtn"){ startReview(); window.scrollTo(0,0); return; }
   if(t.dataset.show){ state.sess.shown=true; renderReview(); return; }
