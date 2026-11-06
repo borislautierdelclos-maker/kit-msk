@@ -405,7 +405,7 @@ function renderChips(){
 }
 function rowHtml(f){
   const k = (f.cle||"").replace(/\*\*/g,"");
-  return `<button class="row" data-id="${esc(f.id)}"><span class="n">${esc(f.nom)}${f.type==="memo"?'<span class="kind">mémo</span>':f.type==="comparatif"?'<span class="kind">gamme</span>':""}</span>${statusPill(f)}<span class="k">${esc(k)}</span></button>`;
+  return `<button class="row" data-id="${esc(f.id)}"><span class="n">${esc(f.nom)}${f.type==="memo"?'<span class="kind">mémo</span>':f.type==="comparatif"?'<span class="kind">gamme</span>':f.type==="signe"?'<span class="kind">signe</span>':""}</span>${statusPill(f)}<span class="k">${esc(k)}</span></button>`;
 }
 function statusPill(f){return f.statut==="verifiee"?`<span class="st ok">vérifiée</span>`:`<span class="st av">à vérifier</span>`}
 function queueHtml(){
@@ -454,7 +454,9 @@ function ficheSections(f){
   // [{key,label,html}] dans l'ordre d'affichage
   const out=[];
   const list=(items)=>`<ul>${arr(items).map(x=>`<li>${fmt(x)}</li>`).join("")}</ul>`;
-  if(f.cle) out.push({key:"cle",label:"À retenir",html:`<div class="key"><small>À retenir</small>${fmt(f.cle)}</div>`});
+  if(f.cle) out.push({key:"cle",label:"À retenir",html:`<div class="key"><small>${f.type==="signe"?"Définition":"À retenir"}</small>${fmt(f.cle)}</div>`});
+  if(f.mecanisme) out.push({key:"mecanisme",label:"Mécanisme",html:`<section class="sec"><h3>Mécanisme</h3><p style="margin:0">${fmt(f.mecanisme)}</p></section>`});
+  if(arr(f.causes).length) out.push({key:"causes",label:"Causes",html:`<section class="sec"><h3>Causes</h3><div class="dd">${arr(f.causes).map(d=>{ const g=findByTitle(d.entite||""); return `<div><b>${g?`<a class="wl" data-go="${esc(g.id)}">${esc(d.entite)}</a>`:fmt(d.entite)}</b><span>${fmt(d.precision||"")}</span></div>`; }).join("")}</div></section>`});
   if(arr(f.epidemio).length) out.push({key:"epidemio",label:"Épidémiologie",html:`<section class="sec"><h3>Épidémiologie</h3>${list(f.epidemio)}</section>`});
   if(arr(f.clinique).length) out.push({key:"clinique",label:"Clinique",html:`<section class="sec"><h3>Clinique</h3>${list(f.clinique)}</section>`});
   arr(f.imagerie).forEach((m,k)=>out.push({key:"imagerie:"+k,label:"Imagerie — "+(m.modalite||""),html:`${k===0?'<h3 class="sech">Imagerie</h3>':""}<div class="mod"><h4>${esc(m.modalite)}</h4>${list(m.points)}</div>`}));
@@ -532,11 +534,11 @@ addEventListener("popstate", ()=>{ const h=decodeURIComponent((location.hash||""
 /* ---------- add sheet ---------- */
 function openSheet(prefill=""){
   state.addFiles = [];
-  const memo = state.addKind==="memo";
+  const memo = state.addKind==="memo", signe = state.addKind==="signe";
   $("#sheetroot").innerHTML = `<div class="scrim" data-close="1"><form class="sheet" id="addform" role="dialog" aria-modal="true" aria-labelledby="sh">
     <h2 id="sh">Nouvelle fiche</h2>
-    <div class="seg" role="group" aria-label="Type de fiche"><button type="button" data-kind="entite" aria-pressed="${!memo}">Entité / pathologie</button><button type="button" data-kind="memo" aria-pressed="${memo}">Classif / thème</button></div>
-    <div class="field"><label for="f-nom">${memo?"Classification, score ou thème":"Entité"}</label><input id="f-nom" placeholder="${memo?"Ex. Bosniak 2019, classification de Neer, démarche devant une lacune":"Ex. chondroblastome, PRES, maladie de Kienböck"}" value="${esc(prefill)}" autocomplete="off"></div>
+    <div class="seg" role="group" aria-label="Type de fiche"><button type="button" data-kind="entite" aria-pressed="${!memo&&!signe}">Entité / pathologie</button><button type="button" data-kind="signe" aria-pressed="${signe}">Signe</button><button type="button" data-kind="memo" aria-pressed="${memo}">Classif / thème</button></div>
+    <div class="field"><label for="f-nom">${memo?"Classification, score ou thème":signe?"Signe":"Entité"}</label><input id="f-nom" placeholder="${memo?"Ex. Bosniak 2019, classification de Neer":signe?"Ex. lignes de Kerley, signe du halo, croissant gazeux":"Ex. chondroblastome, PRES, maladie de Kienböck"}" value="${esc(prefill)}" autocomplete="off"></div>
     <div class="field"><label for="f-url">Lien Radiopaedia (facultatif)</label><input id="f-url" type="url" inputmode="url" placeholder="https://radiopaedia.org/articles/… ou /cases/…" autocomplete="off"></div>
     <div class="field"><label for="f-ctx">${memo?"Ce que tu veux dedans (facultatif)":"Contexte (facultatif)"}</label><textarea id="f-ctx" placeholder="${memo?"Ex. avec le tableau des stades et la conduite à tenir":"Ex. cas Radiopaedia, garçon 15 ans, lésion épiphysaire tibiale"}"></textarea></div>
     ${true?`<div class="field"><label for="f-img">Image à exploiter ou à joindre (facultatif)</label><input id="f-img" type="file" accept="image/*" multiple><div class="thumbs" id="f-thumbs"></div></div>`:""}
