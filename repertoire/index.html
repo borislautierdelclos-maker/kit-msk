@@ -208,6 +208,9 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
 .homebtn{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 10px 4px 6px;font-weight:700;font-size:.82rem;flex:none}
 #hometitle{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:440px){.addbtn{padding:0 10px;gap:4px}.addbtn svg{display:none}}
+.sugg{margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--ink-soft);border-radius:var(--r);padding:12px 14px}
+.sugg small{display:block;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}.sugg b{display:block}.sugg span{display:block;color:var(--muted);font-size:.85rem}.sugg .sb{display:flex;gap:6px}
+.linked{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.linked button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:.85rem;color:var(--ink);font-weight:700}
 .revbtn{background:var(--surface);color:var(--ink);border:1.5px solid var(--ink)}
 .revbtn .badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--ink);color:var(--surface);font-size:.74rem;display:inline-grid;place-items:center}
 .revbtn .badge:empty{display:none}
@@ -401,19 +404,21 @@ function renderChips(){
 }
 function rowHtml(f){
   const k = (f.cle||"").replace(/\*\*/g,"");
-  return `<button class="row" data-id="${esc(f.id)}"><span class="n">${esc(f.nom)}${f.type==="memo"?'<span class="kind">mémo</span>':""}</span>${statusPill(f)}<span class="k">${esc(k)}</span></button>`;
+  return `<button class="row" data-id="${esc(f.id)}"><span class="n">${esc(f.nom)}${f.type==="memo"?'<span class="kind">mémo</span>':f.type==="comparatif"?'<span class="kind">comparatif</span>':""}</span>${statusPill(f)}<span class="k">${esc(k)}</span></button>`;
 }
 function statusPill(f){return f.statut==="verifiee"?`<span class="st ok">vérifiée</span>`:`<span class="st av">à vérifier</span>`}
 function queueHtml(){
-  const items = state.queue.filter(x=>x.status!=="done");
-  if(!items.length) return "";
+  const sugg = state.queue.filter(x=>x.status==="suggestion");
+  const sHtml = sugg.map(x=>`<div class="sugg"><div><small>Comparatif proposé</small><b>${esc(x.nom)}</b>${arr(x.entites_noms).length?`<span>${arr(x.entites_noms).map(esc).join(" · ")}</span>`:""}</div><div class="sb"><button class="btn primary" data-sugok="${esc(x.id)}">Créer</button><button class="btn" data-sugno="${esc(x.id)}">Ignorer</button></div></div>`).join("");
+  const items = state.queue.filter(x=>!["done","suggestion","ignored"].includes(x.status));
+  if(!items.length) return sHtml;
   return `<div class="queue" aria-label="En préparation">` + items.map(x=>{
     const lbl = x.type==="revise" ? `Correction · ${esc(x.nom)}` : x.type==="cartes" ? `Cartes · ${esc(x.nom)}` : x.type==="cartes_lot" ? `Cartes de révision · fiches existantes${x.message?` (${esc(x.message)})`:""}` : esc(x.nom || rpName(x.url) || x.url);
     if(x.status==="error") return `<div class="qitem err"><span class="qn">${lbl}<span class="qmsg">${esc(x.message||"Échec de la rédaction.")}</span></span><button class="linkbtn" data-retry="${esc(x.id)}">Relancer</button><button class="linkbtn" data-drop="${esc(x.id)}">Retirer</button></div>`;
     const s = x.status==="processing" ? "rédaction en cours" : "en file";
     if(x.type==="cartes_lot") return `<div class="qitem"><span class="pulse"></span><span class="qn">${lbl}</span><span class="qs">${s}</span></div>`;
     return `<div class="qitem"><span class="pulse"></span><span class="qn">${lbl}</span><span class="qs">${s}</span></div>`;
-  }).join("") + `</div>`;
+  }).join("") + `</div>` + sHtml;
 }
 function renderList(){
   const main = $("#main");
@@ -496,6 +501,7 @@ function renderFiche(){
         <h2>${esc(f.nom)}</h2>
         ${(f.nom_en||arr(f.synonymes).length)?`<div class="syn">${[f.nom_en,...arr(f.synonymes)].filter(Boolean).map(esc).join(" · ")}</div>`:""}
       </div>
+      ${arr(f.entites).length?`<div class="linked">${arr(f.entites).map(id=>{const e=state.fiches.find(x=>x.id===id); return e?`<button data-go="${esc(id)}">${esc(e.nom)} ›</button>`:"";}).join("")}</div>`:""}
       ${body}
       ${cartesHtml(f)}
       ${ctx}${src}
@@ -555,6 +561,8 @@ document.addEventListener("click", async e=>{
   const go = e.target.closest("[data-go]"); if(go){ state.open=go.dataset.go; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); return; }
   const t = e.target.closest("button,[data-close]"); if(!t) return;
   if(t.id==="homebtn"){ goHome(); return; }
+  if(t.dataset.sugok){ state.db.collection(COL.queue).doc(t.dataset.sugok).update({status:"pending"}).catch(()=>toast("Impossible.")); toast("Comparatif demandé"); return; }
+  if(t.dataset.sugno){ state.db.collection(COL.queue).doc(t.dataset.sugno).update({status:"ignored"}).catch(()=>toast("Impossible.")); return; }
   if(t.id==="revbtn"){ startReview(); window.scrollTo(0,0); return; }
   if(t.dataset.show){ state.sess.shown=true; renderReview(); return; }
   if(t.dataset.grade){ gradeCard(+t.dataset.grade); return; }
