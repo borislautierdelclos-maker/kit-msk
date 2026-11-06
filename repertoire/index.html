@@ -630,9 +630,52 @@ document.addEventListener("change", async e=>{
     catch(err){ toast(err&&err.code==="too_big"?"Image trop lourde.":"Envoi impossible, réessaie."); }
   }
 });
+/* ---------- images glissées ou collées depuis d'autres pages ---------- */
+async function addExternal(sec, files, url){
+  const f = state.fiches.find(x=>x.id===state.open); if(!f) return;
+  toast("Ajout de l'image…");
+  try{
+    let up=[];
+    if(files && files.length) up = await uploadImages(files);
+    else if(url){
+      try{ const r = await fetch(url,{mode:"cors"}); const b = await r.blob(); if(!b.type.startsWith("image/")) throw 0; up = await uploadImages([new File([b],"web",{type:b.type})]); }
+      catch{ up = [{url}]; }   // le site refuse la copie : on garde le lien de l'image
+    }
+    if(!up.length) return;
+    await saveImages(f, arr(f.images).concat(up.map(u=>({...u, legende:"", section:sec||"fin"}))));
+    toast("Image ajoutée"); renderFiche();
+  }catch(err){ toast(err&&err.code==="too_big"?"Image trop lourde.":"Ajout impossible."); }
+}
+function dtUrl(dt){
+  let u = dt.getData("text/uri-list") || "";
+  if(!u){ const h = dt.getData("text/html"); const m = h && h.match(/<img[^>]+src=["']([^"']+)["']/i); if(m) u = m[1]; }
+  if(!u) u = dt.getData("text/plain") || "";
+  u = u.split("\n").map(x=>x.trim()).find(x=>/^https?:\/\//.test(x)) || "";
+  return u;
+}
+document.addEventListener("dragover", e=>{
+  if(drag || !state.open || state.mode) return;
+  const slot = e.target.closest && e.target.closest(".slot"); if(!slot) return;
+  e.preventDefault(); document.querySelectorAll(".slot.over").forEach(x=>x!==slot&&x.classList.remove("over")); slot.classList.add("over");
+});
+document.addEventListener("dragleave", e=>{ const slot = e.target.closest && e.target.closest(".slot"); if(slot && !slot.contains(e.relatedTarget)) slot.classList.remove("over"); });
+document.addEventListener("drop", e=>{
+  if(drag || !state.open || state.mode) return;
+  const slot = e.target.closest && e.target.closest(".slot");
+  const dt = e.dataTransfer; if(!dt) return;
+  const files=[...(dt.files||[])].filter(f=>f.type.startsWith("image/"));
+  const url = files.length ? "" : dtUrl(dt);
+  if(!files.length && !url) return;
+  e.preventDefault(); document.querySelectorAll(".slot.over").forEach(x=>x.classList.remove("over"));
+  addExternal(slot ? slot.dataset.slot : "fin", files, url);
+});
 document.addEventListener("paste", e=>{
-  const files=[...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith("image/")); if(!files.length) return;
-  if($("#f-img")){ state.addFiles=state.addFiles.concat(files); showThumbs(); e.preventDefault(); }
+  const files=[...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith("image/"));
+  if($("#f-img")){ if(files.length){ state.addFiles=state.addFiles.concat(files); showThumbs(); e.preventDefault(); } return; }
+  if(!state.open || state.mode || /INPUT|TEXTAREA/.test(document.activeElement?.tagName||"")) return;
+  const url = files.length ? "" : dtUrl(e.clipboardData);
+  if(!files.length && !(url && /\.(png|jpe?g|webp|gif|avif)(\?|$)/i.test(url))) return;
+  e.preventDefault(); addExternal("fin", files, url);
 });
 $("#q").addEventListener("input", e=>{ state.q=e.target.value; state.open=null; if(state.mode){ state.mode=null; state.sess=null; syncHash(); } renderList(); });
 
