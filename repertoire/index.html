@@ -501,7 +501,7 @@ function renderFiche(){
         <h2>${esc(f.nom)}</h2>
         ${(f.nom_en||arr(f.synonymes).length)?`<div class="syn">${[f.nom_en,...arr(f.synonymes)].filter(Boolean).map(esc).join(" · ")}</div>`:""}
       </div>
-      ${arr(f.entites).length?`<div class="linked">${arr(f.entites).map(id=>{const e=state.fiches.find(x=>x.id===id); return e?`<button data-go="${esc(id)}">${esc(e.nom)} ›</button>`:"";}).join("")}</div>`:""}
+      ${linkedHtml(f)}
       ${body}
       ${cartesHtml(f)}
       ${ctx}${src}
@@ -818,6 +818,14 @@ document.addEventListener("keydown", e=>{
   if(e.key===" "&&!state.sess.shown){ e.preventDefault(); state.sess.shown=true; renderReview(); }
   else if(state.sess.shown && ["1","2","3","4"].includes(e.key)) gradeCard(+e.key);
 });
+function linkedHtml(f){
+  if(f.type!=="comparatif") return "";
+  const seen=new Set(), out=[];
+  arr(f.entites).forEach(id=>{ const e=state.fiches.find(x=>x.id===id); if(e&&!seen.has(e.id)){ seen.add(e.id); out.push(`<button data-go="${esc(e.id)}">${esc(e.nom)} ›</button>`); } });
+  arr(f.entites_noms).forEach(n=>{ const e=findByTitle(n); if(e&&!seen.has(e.id)){ seen.add(e.id); out.push(`<button data-go="${esc(e.id)}">${esc(e.nom)} ›</button>`); }
+    else if(!e) out.push(`<button disabled style="opacity:.55;color:var(--muted)">${esc(n)} · fiche à venir</button>`); });
+  return out.length?`<div class="linked">${out.join("")}</div>`:"";
+}
 function cartesHtml(f){
   const cs=arr(f.cartes); if(!cs.length) return "";
   return `<details class="cartes"><summary>Cartes de révision (${cs.length})</summary><ol>${cs.map(c=>`<li>${fmt(c.q)}<span>${fmt(c.r)}</span></li>`).join("")}</ol></details>`;
