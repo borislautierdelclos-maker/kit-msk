@@ -211,6 +211,21 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
 .sugg{margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--ink-soft);border-radius:var(--r);padding:12px 14px}
 .sugg small{display:block;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}.sugg b{display:block}.sugg span{display:block;color:var(--muted);font-size:.85rem}.sugg .sb{display:flex;gap:6px}
 .linked{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.linked button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:.85rem;color:var(--ink);font-weight:700}
+.edbar{position:sticky;top:0;z-index:12;display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px;margin:10px 0;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.edbar button{border:1px solid var(--line);background:var(--bg);border-radius:8px;min-width:36px;height:36px;padding:0 9px;font-size:.9rem;font-weight:700;color:var(--fg)}
+.edbar button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.edbar button:disabled{opacity:.35}
+.edbar .sep{width:1px;height:26px;background:var(--line);margin:0 2px}
+.edbar .grow{flex:1}
+.ed{outline:2px dashed var(--ink-soft);outline-offset:6px;border-radius:6px;min-height:200px;-webkit-user-select:text;user-select:text}
+.ed figure{position:relative}
+.ed figure.sel{outline:3px solid var(--ink);outline-offset:2px}
+.ed.placing{cursor:crosshair}
+.ed.placing *{cursor:crosshair}
+.ed figcaption{cursor:text}
+.perso [style*="background-color"],.ed [style*="background-color"]{color:#16202A;border-radius:3px;padding:0 1px}
+mark{background:#ffe58a;color:#16202A;border-radius:3px;padding:0 1px}
+.persobar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--ink-soft);border-radius:var(--r);padding:8px 12px;margin-top:12px;font-size:.86rem}
 .revbtn{background:var(--surface);color:var(--ink);border:1.5px solid var(--ink)}
 .revbtn .badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--ink);color:var(--surface);font-size:.74rem;display:inline-grid;place-items:center}
 .revbtn .badge:empty{display:none}
@@ -484,6 +499,7 @@ function renderFiche(){
   const f = state.fiches.find(x=>x.id===state.open);
   const main = $("#main");
   if(!f){ if(!state.fiches.length){ main.innerHTML=`<div class="empty"><h2>Chargement…</h2></div>`; return; } state.open=null; return render(); }
+  if(state.edit===f.id){ renderEditor(f); return; }
   const secs = ficheSections(f), keys = secs.map(s=>s.key);
   const addHere = k => `<label class="addhere" for="imgup" data-sec="${esc(k)}">+ image ici</label>`;
   const body = secs.map(s=>{
@@ -505,12 +521,13 @@ function renderFiche(){
         ${(f.nom_en||arr(f.synonymes).length)?`<div class="syn">${[f.nom_en,...arr(f.synonymes)].filter(Boolean).map(esc).join(" · ")}</div>`:""}
       </div>
       ${linkedHtml(f)}
-      ${body}
+      ${f.perso_html ? `<div class="persobar"><span>Ta version personnalisée${f.updated_at && f.perso_at && f.updated_at>f.perso_at?" · <b>la fiche générée a été mise à jour depuis</b>":""}</span><span><button class="linkbtn" data-edit="1">Modifier</button> · ${state.confirmReset?`<button class="linkbtn" data-reset="2" style="color:var(--danger);font-weight:700">Confirmer : revenir à la version générée</button>`:`<button class="linkbtn" data-reset="1">Version générée</button>`}</span></div><div class="perso">${f.perso_html}</div>` : body}
       ${cartesHtml(f)}
       ${ctx}${src}
       <input id="imgup" type="file" accept="image/*" multiple hidden>
       <div class="actions">
-        <label class="btn addhere-btn" for="imgup" data-sec="fin" style="cursor:pointer">Ajouter une image</label>
+        <button class="btn primary" data-edit="1">Personnaliser la fiche</button>
+        ${f.perso_html?"":`<label class="btn addhere-btn" for="imgup" data-sec="fin" style="cursor:pointer">Ajouter une image</label>`}
         <button class="btn ${f.statut==="verifiee"?"":"primary"}" data-verify="1">${f.statut==="verifiee"?"Repasser à vérifier":"Vérifiée : l'ajouter à la révision"}</button>
         ${arr(f.cartes).length?`<button class="btn primary" data-testfiche="1">Me tester sur cette fiche (${arr(f.cartes).length})</button>`:""}
         ${!arr(f.cartes).length?`<button class="btn" data-gencards="1" ${pendingCards?"disabled":""}>${pendingCards?"Cartes en préparation…":"Créer les cartes de révision"}</button>`:""}
@@ -529,7 +546,7 @@ function syncHash(){
   const hb=$("#homebtn"); if(hb) hb.hidden=!state.open && state.mode!=="review";
 }
 function render(){ renderChips(); state.mode==="review" ? renderReview() : state.open ? renderFiche() : renderList(); syncHash(); updateBadge(); }
-function goHome(){ state.mode=null; state.sess=null; state.sessFiche=null; state.open=null; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); }
+function goHome(){ state.edit=null; state.mode=null; state.sess=null; state.sessFiche=null; state.open=null; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); }
 addEventListener("popstate", ()=>{ const h=decodeURIComponent((location.hash||"").slice(1)); if(h==="reviser"){ startReview(); return; } state.mode=null; state.sess=null; state.open=h||null; state.confirmDel=false; state.rev=false; render(); window.scrollTo(0,0); });
 
 /* ---------- add sheet ---------- */
@@ -598,6 +615,9 @@ document.addEventListener("click", async e=>{
   if(t.dataset.del==="0"){ state.confirmDel=false; renderFiche(); return; }
   if(t.dataset.del==="2"){ state.db.collection(COL.fiches).doc(f.id).delete().catch(()=>toast("Suppression impossible.")); state.open=null; state.confirmDel=false; toast("Fiche supprimée"); render(); return; }
   if(t.dataset.cutf!==undefined){ const c=arr(f.cartes)[+t.dataset.cutf]; if(c){ cutCard(f,c); state.cartesOpen=true; toast("Carte supprimée"); renderFiche(); state.cartesOpen=false; } return; }
+  if(t.dataset.edit){ state.edit=f.id; state.confirmReset=false; renderFiche(); window.scrollTo(0,0); return; }
+  if(t.dataset.reset==="1"){ state.confirmReset=true; renderFiche(); return; }
+  if(t.dataset.reset==="2"){ state.confirmReset=false; state.db.collection(COL.fiches).doc(f.id).update({perso_html:firebase.firestore.FieldValue.delete(), perso_at:firebase.firestore.FieldValue.delete()}).catch(()=>toast("Impossible.")); delete f.perso_html; renderFiche(); toast("Version générée rétablie"); return; }
   if(t.dataset.testfiche){ startReview(f.id); window.scrollTo(0,0); return; }
   if(t.dataset.gencards){ enqueue({type:"cartes", nom:f.nom, fiche_id:f.id}); toast("Cartes demandées"); renderFiche(); return; }
   if(t.dataset.rev==="1"){ state.rev=true; renderFiche(); setTimeout(()=>$("#revtxt")?.focus(),30); return; }
@@ -716,6 +736,130 @@ function endDrag(){
   saveImages(f,ims); toast("Image déplacée");
 }
 document.addEventListener("pointerup", endDrag); document.addEventListener("pointercancel", endDrag);
+
+/* ---------- éditeur libre de fiche ---------- */
+const ED={hist:[],idx:-1,sel:null,placing:null,t:null};
+function figEdHtml(im){ const src = im.fs ? (IMGCACHE[im.fs]||"") : (im.url||"");
+  return `<figure class="fig sz-${esc(im.size||"l")}" contenteditable="false"><img ${im.fs?`data-fs="${esc(im.fs)}"`:""} src="${esc(src)}" alt=""><figcaption contenteditable="true">${esc(im.legende||"")}</figcaption></figure>`; }
+function baseHtml(f){
+  const secs=ficheSections(f), keys=secs.map(s=>s.key);
+  return secs.map(s=>{ const figs=arr(f.images).filter(im=>imgSection(im,keys)===s.key).map(figEdHtml).join(""); return (s.key==="fin"?"":s.html)+figs; }).join("");
+}
+function prepEditorDom(root){
+  root.querySelectorAll("figure").forEach(fg=>{ fg.setAttribute("contenteditable","false"); const c=fg.querySelector("figcaption"); if(c) c.setAttribute("contenteditable","true"); });
+  root.querySelectorAll("img[data-fs]").forEach(im=>{ if(IMGCACHE[im.dataset.fs]) im.src=IMGCACHE[im.dataset.fs]; });
+}
+function renderEditor(f){
+  const main=$("#main");
+  main.innerHTML=`<article><div class="fh"><div class="crumb">Personnalisation · ${esc(f.nom)}</div></div>
+   <div class="edbar" id="edbar">
+     <button data-cmd="bold" title="Gras"><b>G</b></button><button data-cmd="italic" title="Italique"><i>I</i></button><button data-cmd="underline" title="Souligné"><u>S</u></button>
+     <button data-cmd="hilite" title="Surligner" style="background:#ffe58a;color:#16202A">Surligner</button><button data-cmd="caps" title="Majuscules">MAJ</button><button data-cmd="clear" title="Effacer la mise en forme">⌫ forme</button>
+     <span class="sep"></span>
+     <button data-cmd="undo" id="edundo" title="Annuler (Ctrl+Z)">↶</button><button data-cmd="redo" id="edredo" title="Rétablir (Ctrl+Maj+Z)">↷</button>
+     <span class="sep"></span>
+     <label class="btn" for="edimg" style="height:36px;display:inline-flex;align-items:center;padding:0 9px;cursor:pointer">+ Image ici</label>
+     <span id="edfig" hidden style="display:contents"><span class="sep"></span>${["s","m","l","xl"].map(z=>`<button data-sz="${z}">${z.toUpperCase()}</button>`).join("")}<button data-cmd="up" title="Monter">↑</button><button data-cmd="down" title="Descendre">↓</button><button data-cmd="place">Déplacer ici…</button><button data-cmd="delimg" style="color:var(--danger)">Retirer</button></span>
+     <span class="grow"></span>
+     <button data-cmd="cancel">Annuler</button><button data-cmd="save" style="background:var(--ink);color:var(--surface);border-color:var(--ink)">Enregistrer</button>
+   </div>
+   <div class="ed" id="ed" contenteditable="true">${f.perso_html || baseHtml(f)}</div>
+   <input id="edimg" type="file" accept="image/*" multiple hidden>
+   <p class="meta" style="margin-top:14px">Touche une image pour la sélectionner : taille, monter, descendre, ou « Déplacer ici… » puis touche l'endroit voulu dans le texte.</p></article>`;
+  const ed=$("#ed"); prepEditorDom(ed); hydrateImgs();
+  ED.hist=[ed.innerHTML]; ED.idx=0; ED.sel=null; ED.placing=null; edButtons();
+}
+function edSnap(){ const ed=$("#ed"); if(!ed) return; const h=ed.innerHTML; if(ED.hist[ED.idx]===h) return; ED.hist=ED.hist.slice(0,ED.idx+1); ED.hist.push(h); if(ED.hist.length>150) ED.hist.shift(); ED.idx=ED.hist.length-1; edButtons(); }
+function edRestore(i){ const ed=$("#ed"); ED.idx=i; ed.innerHTML=ED.hist[i]; prepEditorDom(ed); edSelect(null); edButtons(); }
+function edButtons(){ const u=$("#edundo"), r=$("#edredo"); if(u) u.disabled=ED.idx<=0; if(r) r.disabled=ED.idx>=ED.hist.length-1; }
+function edSelect(fg){ document.querySelectorAll("#ed figure.sel").forEach(x=>x.classList.remove("sel")); ED.sel=fg; if(fg) fg.classList.add("sel"); const b=$("#edfig"); if(b) b.hidden=!fg;
+  document.querySelectorAll("#edbar [data-sz]").forEach(x=>x.classList.toggle("on", !!fg && fg.classList.contains("sz-"+x.dataset.sz))); }
+function edBlockAt(node){ const ed=$("#ed"); let n=node && (node.nodeType===1?node:node.parentNode);
+  while(n && n!==ed && n.parentNode!==ed && !/^(LI|P|H2|H3|H4|TR)$/.test(n.tagName)) n=n.parentNode;
+  if(n && n.tagName==="TR") n=n.closest("table")?.closest(".tw")||n.closest("table");
+  return (n && n!==ed) ? n : null; }
+function edInsertBlock(el, atNode){ const ed=$("#ed"); const b=edBlockAt(atNode); if(b && b.tagName==="LI"){ b.closest("ul,ol").after(el); } else if(b) b.after(el); else ed.appendChild(el); }
+function edCaretNode(){ const s=getSelection(); return s.rangeCount && $("#ed").contains(s.anchorNode) ? s.anchorNode : null; }
+document.addEventListener("selectionchange", ()=>{ const ed=$("#ed"); const sl=getSelection(); if(ed && sl.rangeCount && ed.contains(sl.anchorNode)) ED.range=sl.getRangeAt(0).cloneRange(); });
+function edRestoreSel(){ const ed=$("#ed"); const sl=getSelection(); if(ED.range && ed.contains(ED.range.startContainer) && !(sl.rangeCount && ed.contains(sl.anchorNode) && !sl.isCollapsed)){ sl.removeAllRanges(); sl.addRange(ED.range); } }
+function edCmd(c){
+  const ed=$("#ed"); if(!ed) return;
+  if(c==="undo"){ if(ED.idx>0) edRestore(ED.idx-1); return; }
+  if(c==="redo"){ if(ED.idx<ED.hist.length-1) edRestore(ED.idx+1); return; }
+  if(c==="cancel"){ state.edit=null; renderFiche(); return; }
+  if(c==="save"){ edSave(); return; }
+  if(c==="up"||c==="down"){ const fg=ED.sel; if(!fg) return; if(c==="up"){ const p=fg.previousElementSibling; if(p) p.before(fg); else if(fg.parentNode!==ed) fg.parentNode.before(fg); } else { const n=fg.nextElementSibling; if(n) n.after(fg); else if(fg.parentNode!==ed) fg.parentNode.after(fg); } fg.scrollIntoView({block:"center",behavior:"smooth"}); edSnap(); return; }
+  if(c==="delimg"){ if(ED.sel){ ED.sel.remove(); edSelect(null); edSnap(); } return; }
+  if(c==="place"){ if(!ED.sel) return; ED.placing=ED.sel; ed.classList.add("placing"); toast("Touche l'endroit où mettre l'image"); return; }
+  ed.focus(); edRestoreSel();
+  document.execCommand("styleWithCSS",false,true);
+  if(c==="bold"||c==="italic"||c==="underline") document.execCommand(c);
+  else if(c==="hilite"){ document.execCommand("hiliteColor",false,"#ffe58a") || document.execCommand("backColor",false,"#ffe58a"); }
+  else if(c==="clear"){ document.execCommand("removeFormat"); document.execCommand("hiliteColor",false,"transparent"); }
+  else if(c==="caps"){ const t=getSelection().toString(); if(t) document.execCommand("insertText",false, t===t.toUpperCase()?t.toLowerCase():t.toUpperCase()); }
+  edSnap();
+}
+function edClean(html){
+  const doc=new DOMParser().parseFromString(`<div>${html}</div>`,"text/html"), root=doc.body.firstChild;
+  const OK=/^(P|DIV|BR|B|STRONG|I|EM|U|MARK|SPAN|H2|H3|H4|H5|UL|OL|LI|TABLE|THEAD|TBODY|TR|TH|TD|FIGURE|FIGCAPTION|IMG|A|SMALL|SUP|SUB|SECTION|BLOCKQUOTE)$/;
+  const CLS=/^(fig|sz-(s|m|l|xl)|key|sec|trap|mod|dd|wl|dead|sech|star|md|tw|src)$/;
+  (function walk(n){ [...n.children].forEach(c=>{ walk(c);
+    if(!OK.test(c.tagName)){ c.replaceWith(...c.childNodes); return; }
+    [...c.attributes].forEach(a=>{ const k=a.name;
+      if(k==="class"){ const v=a.value.split(/\s+/).filter(x=>CLS.test(x)).join(" "); v?c.setAttribute("class",v):c.removeAttribute("class"); }
+      else if(k==="style"){ const keep=[...c.style].filter(p=>/^(background-color|font-weight|font-style|text-decoration|text-decoration-line)$/.test(p)).map(p=>`${p}:${c.style.getPropertyValue(p)}`).join(";"); keep?c.setAttribute("style",keep):c.removeAttribute("style"); }
+      else if(k==="data-fs"||k==="data-go"||(k==="href"&&/^https:/.test(a.value))||(k==="target")||(k==="rel")) {}
+      else if(k==="src"){ if(c.dataset.fs || /^data:/.test(a.value)) c.removeAttribute("src"); }
+      else c.removeAttribute(k); });
+    if(c.tagName==="IMG" && !c.dataset.fs && !c.getAttribute("src")) c.remove();
+  }); })(root);
+  return root.innerHTML;
+}
+function edSave(){
+  const f=state.fiches.find(x=>x.id===state.open); const ed=$("#ed"); if(!f||!ed) return;
+  const html=edClean(ed.innerHTML);
+  if(html.length>800000){ toast("Fiche trop lourde pour être enregistrée."); return; }
+  const at=new Date().toISOString();
+  f.perso_html=html; f.perso_at=at;
+  state.db.collection(COL.fiches).doc(f.id).update({perso_html:html, perso_at:at}).then(()=>toast("Fiche enregistrée")).catch(()=>toast("Enregistrement impossible"));
+  state.edit=null; renderFiche();
+}
+document.addEventListener("input", e=>{ if(e.target.closest && e.target.closest("#ed")){ clearTimeout(ED.t); ED.t=setTimeout(edSnap,500); } });
+document.addEventListener("keydown", e=>{
+  if(!$("#ed")) return;
+  const k=e.key.toLowerCase(), mod=e.metaKey||e.ctrlKey;
+  if(mod && k==="z"){ e.preventDefault(); clearTimeout(ED.t); edSnap(); edCmd(e.shiftKey?"redo":"undo"); }
+  else if(mod && k==="y"){ e.preventDefault(); edCmd("redo"); }
+  else if(mod && (k==="b"||k==="i"||k==="u")){ e.preventDefault(); edCmd(k==="b"?"bold":k==="i"?"italic":"underline"); }
+  else if(mod && k==="s"){ e.preventDefault(); edSave(); }
+  else if((k==="backspace"||k==="delete") && ED.sel && !e.target.closest("figcaption")){ e.preventDefault(); edCmd("delimg"); }
+}, true);
+document.addEventListener("mousedown", e=>{ if(e.target.closest && e.target.closest("#edbar button,#edbar label")) e.preventDefault(); }, true);   // garde la sélection de texte
+document.addEventListener("click", e=>{
+  const ed=$("#ed"); if(!ed) return;
+  const b=e.target.closest("#edbar button"); if(b){ e.stopPropagation(); if(b.dataset.sz){ if(ED.sel){ ED.sel.className=ED.sel.className.replace(/sz-\w+/,"sz-"+b.dataset.sz); edSelect(ED.sel); edSnap(); } } else edCmd(b.dataset.cmd); return; }
+  if(!ed.contains(e.target)) return;
+  if(ED.placing){ e.stopPropagation(); e.preventDefault(); const fg=ED.placing; ED.placing=null; ed.classList.remove("placing");
+    let node=e.target; if(document.caretRangeFromPoint){ const r=document.caretRangeFromPoint(e.clientX,e.clientY); if(r) node=r.startContainer; }
+    if(fg.contains(node)) return; edInsertBlock(fg,node); edSelect(fg); edSnap(); toast("Image déplacée"); return; }
+  const fg=e.target.closest("figure"); if(fg && !e.target.closest("figcaption")){ e.stopPropagation(); e.preventDefault(); edSelect(fg===ED.sel?null:fg); return; }
+  if(!fg) edSelect(null);
+}, true);
+document.addEventListener("change", async e=>{
+  if(e.target.id!=="edimg") return; const files=[...e.target.files]; e.target.value=""; if(!files.length) return;
+  const at=edCaretNode(); toast("Envoi de l'image…");
+  try{ const up=await uploadImages(files); up.forEach(u=>{ const w=document.createElement("div"); w.innerHTML=figEdHtml({...u,size:"l"}); const fg=w.firstChild; edInsertBlock(fg,at); }); prepEditorDom($("#ed")); edSnap(); toast("Image ajoutée"); }
+  catch(err){ toast(err&&err.code==="too_big"?"Image trop lourde.":"Envoi impossible."); }
+}, true);
+document.addEventListener("paste", async e=>{
+  if(!$("#ed") || !e.target.closest || !e.target.closest("#ed")) return;
+  const files=[...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith("image/"));
+  e.stopImmediatePropagation();
+  if(files.length){ e.preventDefault(); const at=edCaretNode(); try{ const up=await uploadImages(files); up.forEach(u=>{ const w=document.createElement("div"); w.innerHTML=figEdHtml({...u,size:"l"}); edInsertBlock(w.firstChild,at); }); prepEditorDom($("#ed")); edSnap(); }catch{ toast("Image non ajoutée."); } return; }
+  const t=e.clipboardData?.getData("text/plain"); if(t){ e.preventDefault(); document.execCommand("insertText",false,t); edSnap(); }   // colle sans la mise en forme externe
+}, true);
+document.addEventListener("drop", e=>{ if($("#ed") && e.target.closest && e.target.closest("#ed")){ e.stopImmediatePropagation(); const dt=e.dataTransfer; const files=[...(dt?.files||[])].filter(f=>f.type.startsWith("image/")); if(!files.length) return; e.preventDefault(); const at=e.target; uploadImages(files).then(up=>{ up.forEach(u=>{ const w=document.createElement("div"); w.innerHTML=figEdHtml({...u,size:"l"}); edInsertBlock(w.firstChild,at); }); prepEditorDom($("#ed")); edSnap(); }).catch(()=>toast("Image non ajoutée.")); } }, true);
+addEventListener("beforeunload", e=>{ if($("#ed") && ED.idx>0){ e.preventDefault(); e.returnValue=""; } });
 
 /* ---------- révision espacée (FSRS-4.5) ---------- */
 const W=[0.4872,1.4003,3.7145,13.8206,5.1618,1.2298,0.8975,0.031,1.6474,0.1367,1.0461,2.1072,0.0793,0.3246,1.587,0.2272,2.8755];
@@ -895,8 +1039,8 @@ async function seedIfNeeded(db){
   const db = firebase.firestore();
   db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   state.db = db;
-  db.collection(COL.fiches).onSnapshot(s=>{ state.fiches = s.docs.map(d=>({id:d.id,...d.data()})); state.ready=true; if(state.mode==="review" && state.sess){ updateBadge(); renderChips(); } else render(); }, e=>{ console.error(e); state.ready=true; render(); toast("Lecture des fiches impossible : "+(e&&e.code||"erreur")); });
-  db.collection(COL.queue).onSnapshot(s=>{ state.queue = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))); if(state.mode!=="review") state.open ? renderFiche() : renderList(); }, ()=>{});
+  db.collection(COL.fiches).onSnapshot(s=>{ state.fiches = s.docs.map(d=>({id:d.id,...d.data()})); state.ready=true; if((state.mode==="review" && state.sess) || state.edit){ updateBadge(); renderChips(); } else render(); }, e=>{ console.error(e); state.ready=true; render(); toast("Lecture des fiches impossible : "+(e&&e.code||"erreur")); });
+  db.collection(COL.queue).onSnapshot(s=>{ state.queue = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))); if(state.mode!=="review" && !state.edit) state.open ? renderFiche() : renderList(); }, ()=>{});
   db.collection(COL.srs).onSnapshot(s=>{ state.srs = Object.fromEntries(s.docs.map(d=>[d.id,d.data()])); state.srsReady=true; if(state.mode==="review" && !state.sess) renderReview(); updateBadge(); }, ()=>{ state.srsReady=true; });
   seedIfNeeded(db);
 })();
