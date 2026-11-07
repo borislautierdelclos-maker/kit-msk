@@ -255,6 +255,11 @@ mark{background:#ffe58a;color:#16202A;border-radius:3px;padding:0 1px}
 .pipe{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;border-radius:10px;padding:8px 12px;font-size:.84rem;background:var(--sunk);color:var(--muted)}
 .pipe.warn{background:var(--warn-soft);color:var(--warn)}.pipe.stop{background:var(--danger-soft);color:var(--danger)}
 .pipe b{color:inherit}.pipe select{padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.qbox{padding:0;overflow:hidden}
+.pipe.inbox{margin:0 12px 10px}
+.qhead{display:flex;width:100%;align-items:center;gap:8px;border:0;background:none;padding:10px 12px;text-align:left;font-size:.88rem;color:var(--fg)}
+.qhead .qn{flex:1}.qgrp{border-top:1px solid var(--line);padding:8px 12px}.qgt{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.qgrp .qitem{border:0;padding:3px 0}.qrest{font-size:.82rem;color:var(--muted);line-height:1.45}
 .today{margin-top:14px;background:var(--surface);border:1.5px solid var(--ink);border-radius:14px;padding:14px;display:grid;gap:10px}
 .today .th{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .today h2{margin:0;font-family:var(--f-display);font-size:1.05rem}
@@ -405,7 +410,8 @@ async function hydrateImgs(){
 }
 function lightbox(src){ $("#lbroot").innerHTML = `<div class="lightbox" data-lb="1"><img src="${esc(src)}" alt=""></div>`; }
 
-const state = {fiches:[], queue:[], config:null, filter:null, fam:null, q:"", open:null, db:null, mcp:null, assets:null, ready:false, lastKick:0, confirmDel:false, rev:false, addKind:"entite", addFiles:[], capFor:null, mode:null, srs:{}, sess:null};
+let _qo=false; try{ _qo=localStorage.getItem("qOpen")==="1"; }catch{}
+const state = {qOpen:_qo, fiches:[], queue:[], config:null, filter:null, fam:null, q:"", open:null, db:null, mcp:null, assets:null, ready:false, lastKick:0, confirmDel:false, rev:false, addKind:"entite", addFiles:[], capFor:null, mode:null, srs:{}, sess:null};
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/★+/g, m => `<span class="star">${m}</span>`)
@@ -466,14 +472,23 @@ function queueHtml(){
   const sugg = state.queue.filter(x=>x.status==="suggestion");
   const sHtml = sugg.map(x=>`<div class="sugg"><div><small>Gamme proposée</small><b>${esc(x.nom)}</b>${arr(x.entites_noms).length?`<span>${arr(x.entites_noms).map(esc).join(" · ")}</span>`:""}</div><div class="sb"><button class="btn primary" data-sugok="${esc(x.id)}">Créer</button><button class="btn" data-sugno="${esc(x.id)}">Ignorer</button></div></div>`).join("");
   const items = state.queue.filter(x=>x.app!=="quotidien" && !["done","suggestion","ignored"].includes(x.status));
-  if(!items.length) return sHtml;
-  return `<div class="queue" aria-label="En préparation">` + items.map(x=>{
-    const lbl = x.type==="revise" ? `Correction · ${esc(x.nom)}` : x.type==="cartes" ? `Cartes · ${esc(x.nom)}` : x.type==="cartes_lot" ? `Cartes de révision · fiches existantes${x.message?` (${esc(x.message)})`:""}` : esc(x.nom || rpName(x.url) || x.url);
-    if(x.status==="error") return `<div class="qitem err"><span class="qn">${lbl}<span class="qmsg">${esc(x.message||"Échec de la rédaction.")}</span></span><button class="linkbtn" data-retry="${esc(x.id)}">Relancer</button><button class="linkbtn" data-drop="${esc(x.id)}">Retirer</button></div>`;
-    const s = x.status==="processing" ? "rédaction en cours" : "en file";
-    if(x.type==="cartes_lot") return `<div class="qitem"><span class="pulse"></span><span class="qn">${lbl}</span><span class="qs">${s}</span></div>`;
-    return `<div class="qitem"><span class="pulse"></span><span class="qn">${lbl}</span><span class="qs">${s}</span></div>`;
-  }).join("") + `</div>` + sHtml;
+  const P=state.pipe||{}, alert = P.pause===true || P.etat==="limite" || P.etat==="plafond" || ((+P.minutes_jour||0)/60 >= 0.8*(+P.plafond_heures||8));
+  if(!items.length) return (alert?pipeHtml():"") + sHtml;
+  const errs = items.filter(x=>x.status==="error");
+  const cat = x => x.type==="source" ? "src" : x.type==="new" ? "new" : (x.type==="cartes"||x.type==="cartes_lot") ? "crt" : "rev";
+  const LAB = {new:["Nouvelles fiches","fiche"], rev:["Compléments de fiches existantes (images, corrections)","complément"], crt:["Cartes de révision à réécrire","fiche"], src:["Documents et articles à lire pour trouver des entités","document"]};
+  const groups = ["new","rev","crt","src"].map(k=>[k, items.filter(x=>cat(x)===k && x.status!=="error")]).filter(g=>g[1].length);
+  const running = items.filter(x=>x.status==="processing");
+  const name = x => x.type==="source" ? esc(String(x.nom||"").replace(/^(Source|Radiology Assistant|Oncle Paul) · /,"")) : esc(x.nom || rpName(x.url) || x.url);
+  const open = state.qOpen;
+  const head = `<button class="qhead" data-qtoggle="1" aria-expanded="${open?"true":"false"}"><span class="pulse"></span><span class="qn">Rédaction en arrière-plan : <b>${items.length}</b> tâche${items.length>1?"s":""}${running.length?` · ${running.length} en cours`:""}${errs.length?` · <span style="color:var(--danger)">${errs.length} en erreur</span>`:""}</span><span class="qs">${open?"replier ▴":"détails ▾"}</span></button>${(open||alert)?pipeHtml().replace('class="pipe','class="pipe inbox'):""}`;
+  let body = "";
+  if(open){
+    body = errs.map(x=>`<div class="qitem err"><span class="qn">${name(x)}<span class="qmsg">${esc(x.message||"Échec de la rédaction.")}</span></span><button class="linkbtn" data-retry="${esc(x.id)}">Relancer</button><button class="linkbtn" data-drop="${esc(x.id)}">Retirer</button></div>`).join("")
+      + groups.map(([k,g])=>{ const now=g.filter(x=>x.status==="processing"); const rest=g.filter(x=>x.status!=="processing");
+        return `<div class="qgrp"><div class="qgt">${LAB[k][0]} <b>${g.length}</b></div>${now.map(x=>`<div class="qitem"><span class="pulse"></span><span class="qn">${name(x)}</span><span class="qs">en cours</span></div>`).join("")}${rest.length?`<div class="qrest">${rest.slice(0,12).map(name).join(" · ")}${rest.length>12?` · et ${rest.length-12} autres`:""}</div>`:""}</div>`; }).join("");
+  }
+  return `<div class="queue qbox" aria-label="Rédaction en arrière-plan">${head}${body}</div>` + sHtml;
 }
 /* ---------- programme du jour ---------- */
 const PRIO=["MSK","Rachis","Trauma","Sein","Neuro","Thorax","Digestif","Uro","Gynéco","Vasculaire","Onco","Hémato","Interventionnel","Transversal","Cardiaque","Pédiatrie","ORL"];
@@ -541,7 +556,7 @@ function renderList(){
     main.innerHTML = html; return;
   }
   const list = visible();
-  if(!state.filter && !state.fam) html += pipeHtml() + todayHtml();
+  if(!state.filter && !state.fam) html += todayHtml();
   if(!state.fiches.length){
     html += `<div class="empty"><h2>Aucune fiche pour l'instant</h2><p>Tape le nom d'une entité croisée en stage ou sur un cas, avec si tu veux deux mots de contexte. La fiche (épidémio, clinique, imagerie, DD, pièges) est rédigée à partir du topo Radiopaedia et apparaît ici toute seule.</p><button class="btn primary" data-add="1">Ficher une première entité</button></div>`;
     main.innerHTML = html; return;
@@ -674,6 +689,7 @@ document.addEventListener("click", async e=>{
   const go = e.target.closest("[data-go]"); if(go){ state.open=go.dataset.go; state.confirmDel=false; state.rev=false; state.capFor=null; render(); window.scrollTo(0,0); return; }
   const t = e.target.closest("button,[data-close]"); if(!t) return;
   if(t.id==="homebtn"){ goHome(); return; }
+  if(t.dataset.qtoggle){ state.qOpen=!state.qOpen; try{ localStorage.setItem("qOpen", state.qOpen?"1":""); }catch{} renderList(); return; }
   if(t.dataset.sugok){ state.db.collection(COL.queue).doc(t.dataset.sugok).update({status:"pending"}).catch(()=>toast("Impossible.")); toast("Gamme demandée"); return; }
   if(t.dataset.sugno){ state.db.collection(COL.queue).doc(t.dataset.sugno).update({status:"ignored"}).catch(()=>toast("Impossible.")); return; }
   if(t.id==="pipepause"){ const on=!(state.pipe&&state.pipe.pause===true); state.db.collection(COL.meta).doc("pipeline").set({pause:on},{merge:true}).then(()=>toast(on?"Rédaction mise en pause (la session en cours se termine)":"Rédaction relancée")).catch(()=>toast("Impossible.")); return; }
