@@ -234,6 +234,21 @@ body.is-dragging .slot{outline-color:var(--line);min-height:28px;margin:6px 0}
 .offline{font-family:var(--f-mono);font-size:.66rem;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
 
 .tw{overflow-x:auto;margin:8px 0}.md table{border-collapse:collapse;font-size:.9rem;min-width:100%}.md th,.md td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}.md th{background:var(--sunk)}
+.ac{margin-top:14px;background:var(--surface);border:1.5px solid var(--ink);border-radius:var(--r);padding:14px;display:grid;gap:14px}
+.ac h3{margin:0;font-family:var(--f-display);font-size:.82rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink)}
+.ac .st{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.ac select,.ac input[type=date]{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:.95rem}
+.ac .opts{display:flex;flex-wrap:wrap;gap:6px}
+.ac .opts label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-size:.88rem;background:var(--bg);cursor:pointer}
+.ac .opts input{accent-color:var(--ink)}
+.ac .opts label:has(input:checked){background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.ac .grp{font-size:.74rem;color:var(--muted);width:100%;margin-top:4px}
+.res{display:grid;gap:10px}
+.res .risk{border-radius:10px;padding:10px 12px;font-weight:700}
+.res .risk.lo{background:var(--ok-soft);color:var(--ok)}.res .risk.hi{background:var(--warn-soft);color:var(--warn)}
+.res .alert{background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 12px;font-size:.92rem}
+.res table{border-collapse:collapse;width:100%;font-size:.9rem}.res td,.res th{border:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}.res th{background:var(--sunk)}
+.res .note{font-size:.8rem;color:var(--muted)}
 .calc{margin-top:14px;background:var(--surface);border:1.5px solid var(--ink);border-radius:var(--r);padding:12px 14px;display:grid;gap:10px}
 .calc h3{margin:0;font-family:var(--f-display);font-size:.82rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink)}
 .calc .in{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
@@ -320,9 +335,93 @@ const CALCS={
       if(v.psa!=null && vol>0){ const d=v.psa/vol; s+=`<br>Densité de PSA <b>${r2(d)} ng/mL/mL</b> ${d>=0.15?"≥ 0,15 : seuil habituel de suspicion":"< 0,15"}`; }
       return s; }},
 };
-function calcHtml(id){ const c=CALCS[id]; if(!c) return "";
+function calcHtml(id){ if(id==="antico") return acHtml(); const c=CALCS[id]; if(!c) return "";
   return `<div class="calc" data-calc="${esc(id)}"><h3>${esc(c.titre)}</h3><div class="in">${c.champs.map(([k,l])=>`<label>${esc(l)}<input inputmode="decimal" data-k="${k}" autocomplete="off"></label>`).join("")}</div><div class="out">${c.run({})}</div></div>`; }
 document.addEventListener("input",e=>{ const box=e.target.closest&&e.target.closest("[data-calc]"); if(!box) return; const c=CALCS[box.dataset.calc]; const v={}; box.querySelectorAll("input").forEach(i=>v[i.dataset.k]=num(i.value)); box.querySelector(".out").innerHTML=c.run(v); });
+
+
+/* ---------- assistant anticoagulants (CAR/CAIR 2026, fondé sur SIR 2019) ---------- */
+const AC_GESTES={
+ faible:["Biopsie, macrobiopsie, repérage ou drainage mammaire","Changement de cathéter, drain, sonde de néphrostomie ou de gastrostomie","Drain thoracique pour épanchement pleural","Artériographie diagnostique ou geste artériel, désilet ≤ 6 F ou voie radiale","Phlébographie et gestes veineux","Gestes sur abord de dialyse","Infiltration facettaire ou bloc de branche médiale (thoracique, lombaire)","Pose ou retrait de filtre cave","Ponction lombaire","Infiltration ostéo-articulaire, tendineuse ou musculaire","Bloc nerveux (sacré latéral, hypogastrique, plexus cœliaque)","Paracentèse","Drain péritonéal","Biopsie ou drainage superficiel (ganglion palpable, parties molles, thyroïde, os superficiel, moelle)","Ablation ostéo-articulaire superficielle","Cathéter sus-pubien","Thoracentèse","Biopsie hépatique transjugulaire","Voie veineuse centrale, PICC, chambre implantable (pose ou retrait)"],
+ eleve:["Ablation hépatique, rénale ou pulmonaire","Recanalisation veineuse thoracique (veine cave supérieure)","Geste artériel avec désilet ≥ 7 F","Geste biliaire (drainage, cholécystostomie)","Bloc cervical ou infiltration péridurale","Drainage d'une collection profonde","Gastrostomie ou jéjunostomie de première intention","Biopsie pulmonaire ou repérage de nodule","Drain de LCS lombaire","Néphrostomie","Biopsie d'organe profond (foie, rein, prostate) ou ganglion / parties molles profonds","TIPS ou abord portal direct","Vertébroplastie, cyphoplastie"]
+};
+const AC_MOL=[
+ // [id, libellé, groupe, dernière prise (risque élevé) [texte, jours avant ou null], reprise]
+ ["aspirine","Aspirine","Antiagrégants",["5 jours avant",5],"le soir même"],
+ ["clopidogrel","Clopidogrel","Antiagrégants",["5 jours avant",5],"le soir même"],
+ ["ticagrelor","Ticagrélor","Antiagrégants",["3 jours avant",3],"le soir même"],
+ ["prasugrel","Prasugrel","Antiagrégants",["7 jours avant",7],"le soir même"],
+ ["asadip","Aspirine + dipyridamole","Antiagrégants",["3 jours avant",3],"le soir même"],
+ ["warfarine","Warfarine (Coumadine)","AVK",["5 jours avant",5],"le soir même (relais HBPM à J+1 à discuter si risque thrombotique élevé)"],
+ ["avkautre","Autre AVK (fluindione, acénocoumarol)","AVK",null,null],
+ ["apixaban","Apixaban","AOD",["le soir, 2 jours avant",2],"J+1"],
+ ["rivaroxaban","Rivaroxaban","AOD",["2 jours avant",2],"J+1"],
+ ["edoxaban","Édoxaban","AOD",["2 jours avant",2],"J+1"],
+ ["dabigatran","Dabigatran","AOD",["dfg"],"J+1"],
+ ["hbpmc","HBPM curative","Héparines",["24 h avant",null],"J+1"],
+ ["hbpmp","HBPM préventive","Héparines",["12 h avant",null],"le soir même"],
+ ["hnfiv","Héparine non fractionnée IV","Héparines",["arrêt 4 à 6 h avant",null],"6 h après"],
+ ["hnfsc","Héparine non fractionnée SC préventive","Héparines",["8 h avant",null],"le soir même"],
+ ["fondac","Fondaparinux curatif","Héparines",["dfg"],"J+1"],
+ ["fondap","Fondaparinux préventif","Héparines",["dfg"],"le soir même"],
+];
+const acState={geste:"",risque:"",hepato:false,mols:new Set(),dfg:"",thrombo:false,date:""};
+function acDate(days){ if(!acState.date||days==null) return ""; const d=new Date(acState.date+"T12:00:00"); d.setDate(d.getDate()-days); return " — "+d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"}); }
+function acHtml(){
+  const opt=(l)=>`<option ${acState.geste===l?"selected":""}>${esc(l)}</option>`;
+  const groups=[...new Set(AC_MOL.map(m=>m[2]))];
+  const needDfg=[...acState.mols].some(id=>["dabigatran","fondac","fondap"].includes(id));
+  return `<div class="ac" id="ac"><h3>Assistant : quoi faire avant le geste</h3>
+  <div><div class="st">1. Le geste</div><select data-ac="geste"><option value="">Choisir le geste…</option><optgroup label="Risque hémorragique faible">${AC_GESTES.faible.map(opt).join("")}</optgroup><optgroup label="Risque hémorragique élevé">${AC_GESTES.eleve.map(opt).join("")}</optgroup><optgroup label="Autre geste"><option ${acState.geste==="autre-faible"?"selected":""} value="autre-faible">Autre geste à risque faible</option><option ${acState.geste==="autre-eleve"?"selected":""} value="autre-eleve">Autre geste à risque élevé</option></optgroup></select></div>
+  <div><div class="st">2. Le patient</div><div class="opts"><label><input type="checkbox" data-ac="hepato" ${acState.hepato?"checked":""}>Hépatopathie chronique</label><label><input type="checkbox" data-ac="thrombo" ${acState.thrombo?"checked":""}>Risque thrombotique élevé</label></div><div class="grp">Risque thrombotique élevé : stent, angioplastie, ablation, thrombose ou AVC/AIT de moins d'un an, valve mécanique.</div></div>
+  <div><div class="st">3. Ses traitements</div>${groups.map(g=>`<div class="grp">${esc(g)}</div><div class="opts">${AC_MOL.filter(m=>m[2]===g).map(m=>`<label><input type="checkbox" data-acm="${m[0]}" ${acState.mols.has(m[0])?"checked":""}>${esc(m[1])}</label>`).join("")}</div>`).join("")}</div>
+  ${needDfg?`<div><div class="st">4. Fonction rénale</div><div class="opts"><label><input type="radio" name="acdfg" data-acdfg="ok" ${acState.dfg==="ok"?"checked":""}>DFG ≥ 50 mL/min</label><label><input type="radio" name="acdfg" data-acdfg="bas" ${acState.dfg==="bas"?"checked":""}>DFG &lt; 50 mL/min</label></div></div>`:""}
+  <div><div class="st">${needDfg?"5":"4"}. Date du geste (facultatif)</div><input type="date" data-ac="date" value="${esc(acState.date)}"></div>
+  <div class="res" id="acres">${acResult()}</div></div>`;
+}
+function acResult(){
+  const g=acState.geste; if(!g) return `<div class="note">Choisis le geste pour commencer.</div>`;
+  const hi = g==="autre-eleve" || AC_GESTES.eleve.includes(g);
+  const h=[]; const hep=acState.hepato;
+  h.push(`<div class="risk ${hi?"hi":"lo"}">Geste à risque hémorragique ${hi?"ÉLEVÉ":"FAIBLE"}</div>`);
+  if(acState.thrombo) h.push(`<div class="alert"><b>Risque thrombotique élevé :</b> ne pas arrêter un antiagrégant sans l'avis du cardiologue ou du neurologue prescripteur. Relais par HBPM non systématique : à discuter avec un spécialiste de la thrombose (valve mécanique, thrombose très récente). Le geste peut parfois se faire sous traitement.</div>`);
+  // biologie
+  const bio = hi
+    ? `<b>À doser :</b> INR et plaquettes.<br>Seuils : <b>INR &lt; ${hep?"2,5":"1,8"}</b> · <b>plaquettes ≥ ${hep?"30":"50"} G/L</b>${hep?" (hépatopathie chronique)":""}.`
+    : `<b>Pas de bilan systématique.</b><br>Si un bilan existe : ${hep?"pas de cible d'INR":"INR ≤ 3,0"} · plaquettes ≥ 20 G/L.`;
+  h.push(`<div><div class="st">Biologie</div>${bio}<div class="note">Bilan valable 12 semaines chez un externe stable, 72 h chez un hospitalisé.</div></div>`);
+  const mols=AC_MOL.filter(m=>acState.mols.has(m[0]));
+  if(!mols.length){ h.push(`<div class="note">Aucun traitement coché : rien à arrêter.</div>`); }
+  else{
+    const rows=mols.map(m=>{
+      if(m[0]==="avkautre") return `<tr><td>${esc(m[1])}</td><td colspan="2">Non couvert par la recommandation (demi-vies différentes de la warfarine) : protocole du service ou avis du prescripteur, INR à J−1.</td></tr>`;
+      if(!hi){ const w = m[0]==="warfarine" ? "Ne pas arrêter. Si INR habituellement au-dessus de la cible : INR à J−1, vitamine K orale si besoin." : "Ne pas arrêter."; return `<tr><td>${esc(m[1])}</td><td colspan="2">${w}</td></tr>`; }
+      let last=m[3], txt, days;
+      if(last[0]==="dfg"){
+        if(!acState.dfg) return `<tr><td>${esc(m[1])}</td><td colspan="2">Renseigne le DFG.</td></tr>`;
+        const bas=acState.dfg==="bas";
+        if(m[0]==="dabigatran"){ txt=bas?"le soir, 3 jours avant":"le soir, 2 jours avant"; days=bas?3:2; }
+        else { txt=bas?"3 jours avant":"2 jours avant"; days=bas?3:2; }
+      } else { txt=last[0]; days=last[1]; }
+      const anti = m[2]==="Antiagrégants" && acState.thrombo ? `<br><b>Avis du prescripteur avant tout arrêt.</b>` : "";
+      return `<tr><td>${esc(m[1])}</td><td><b>Dernière prise ${esc(txt)}</b>${acDate(days)}${anti}</td><td>${esc(m[4])}</td></tr>`;
+    }).join("");
+    h.push(`<table><tr><th>Traitement</th><th>${hi?"Avant":"Conduite"}</th>${hi?"<th>Reprise</th>":""}</tr>${rows.replace(/<td colspan="2">/g, hi?'<td colspan="2">':'<td>')}</table>`);
+    if(hi && mols.some(m=>m[2]==="AOD")) h.push(`<div class="note">Geste urgent sous AOD : doser si possible (anti-Xa &lt; 50 ng/mL ou temps de thrombine dilué &lt; 50 s = effet minime), sinon discuter un antidote. La décision revient à l'opérateur.</div>`);
+  }
+  h.push(`<div class="note">Référence : CAR/CAIR 2026 (fondée sur SIR 2019). Le protocole de ton service prime. Aide-mémoire, ne remplace pas l'avis de l'opérateur.</div>`);
+  return h.join("");
+}
+function acRefresh(full){ const box=$("#ac"); if(!box) return; if(full){ box.outerHTML=acHtml(); } else { $("#acres").innerHTML=acResult(); } }
+document.addEventListener("change",e=>{
+  const t=e.target; if(!t.closest||!t.closest("#ac")) return;
+  if(t.dataset.ac==="geste"){ acState.geste=t.value; acRefresh(false); return; }
+  if(t.dataset.ac==="hepato"){ acState.hepato=t.checked; acRefresh(false); return; }
+  if(t.dataset.ac==="thrombo"){ acState.thrombo=t.checked; acRefresh(false); return; }
+  if(t.dataset.ac==="date"){ acState.date=t.value; acRefresh(false); return; }
+  if(t.dataset.acm){ t.checked?acState.mols.add(t.dataset.acm):acState.mols.delete(t.dataset.acm); acRefresh(true); return; }
+  if(t.dataset.acdfg){ acState.dfg=t.dataset.acdfg; acRefresh(false); return; }
+});
 
 /* ---------- liste ---------- */
 function visible(){ let l=state.fiches; if(state.filter==="fav") l=l.filter(f=>f.favori); else if(state.filter) l=l.filter(f=>f.type===state.filter); if(state.org) l=l.filter(f=>f.organe===state.org||arr(f.tags).includes(state.org)); return l; }
@@ -362,7 +461,7 @@ function renderList(){
 /* ---------- fiche ---------- */
 function renderFiche(){
   const f=state.fiches.find(x=>x.id===state.open), main=$("#main");
-  if(!f){ state.open=null; return render(); }
+  if(!f){ if(!state.ready || !state.fiches.length){ main.innerHTML=`<div class="empty"><h2>Chargement…</h2></div>`; return; } state.open=null; return render(); }
   const sec=(t,h)=>h?`<section class="sec"><h3>${t}</h3>${h}</section>`:"";
   const imgs=arr(f.images).filter(im=>!im.section||im.section==="fin").map(im=>`<figure class="fig sz-${esc(im.size||"l")}"><img ${im.fs?`data-fs="${esc(im.fs)}" src=""`:`src="${esc(im.url||"")}"`} alt="${esc(im.legende||"")}" loading="lazy" data-zoom="1"><figcaption><span class="cap">${esc(im.legende||"")}</span></figcaption></figure>`).join("");
   const src=arr(f.sources).length?`<section class="sec src"><h3>Sources</h3><ul>${arr(f.sources).map(s=>`<li>${/^https:\/\//.test(s.url||"")?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.titre||s.url)}</a>`:esc(s.titre||"")}</li>`).join("")}</ul></section>`:"";
@@ -372,8 +471,9 @@ function renderFiche(){
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><h2>${esc(f.nom)}</h2><button class="favbtn" data-fav="1" aria-label="${f.favori?"Retirer des favoris":"Ajouter aux favoris"}">${f.favori?"★":"☆"}</button></div>
     ${(f.nom_en||arr(f.synonymes).length)?`<div class="syn">${[f.nom_en,...arr(f.synonymes)].filter(Boolean).map(esc).join(" · ")}</div>`:""}
     ${f.quand?`<div class="quand">${fmt(f.quand)}</div>`:""}</div>
-    ${f.contenu_md?`<div class="md">${mdHtml(f.contenu_md)}</div>`:""}
-    ${calcHtml(f.calc)}
+    ${f.calc==="antico"?calcHtml(f.calc):""}
+    ${f.contenu_md?(f.calc==="antico"?`<details class="cartes"><summary>Tableaux de référence</summary><div class="md">${mdHtml(f.contenu_md)}</div></details>`:`<div class="md">${mdHtml(f.contenu_md)}</div>`):""}
+    ${f.calc!=="antico"?calcHtml(f.calc):""}
     ${sec("Conduite à tenir",f.cat?`<div class="md">${mdHtml(f.cat)}</div>`:"")}
     ${f.phrase_cr?`<div class="phrase"><small>Phrase de conclusion</small><p>${fmt(f.phrase_cr)}</p><button class="btn" data-copy="1" style="justify-self:start">Copier</button></div>`:""}
     ${f.piege?`<section class="trap sec"><h3>Piège</h3><div class="md">${mdHtml(f.piege)}</div></section>`:""}
