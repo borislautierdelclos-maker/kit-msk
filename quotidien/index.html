@@ -340,81 +340,98 @@ function calcHtml(id){ if(id==="antico") return acHtml(); const c=CALCS[id]; if(
 document.addEventListener("input",e=>{ const box=e.target.closest&&e.target.closest("[data-calc]"); if(!box) return; const c=CALCS[box.dataset.calc]; const v={}; box.querySelectorAll("input").forEach(i=>v[i.dataset.k]=num(i.value)); box.querySelector(".out").innerHTML=c.run(v); });
 
 
-/* ---------- assistant anticoagulants (CAR/CAIR 2026, fondé sur SIR 2019) ---------- */
-const AC_GESTES={
- faible:["Biopsie, macrobiopsie, repérage ou drainage mammaire","Changement de cathéter, drain, sonde de néphrostomie ou de gastrostomie","Drain thoracique pour épanchement pleural","Artériographie diagnostique ou geste artériel, désilet ≤ 6 F ou voie radiale","Phlébographie et gestes veineux","Gestes sur abord de dialyse","Infiltration facettaire ou bloc de branche médiale (thoracique, lombaire)","Pose ou retrait de filtre cave","Ponction lombaire","Infiltration ostéo-articulaire, tendineuse ou musculaire","Bloc nerveux (sacré latéral, hypogastrique, plexus cœliaque)","Paracentèse","Drain péritonéal","Biopsie ou drainage superficiel (ganglion palpable, parties molles, thyroïde, os superficiel, moelle)","Ablation ostéo-articulaire superficielle","Cathéter sus-pubien","Thoracentèse","Biopsie hépatique transjugulaire","Voie veineuse centrale, PICC, chambre implantable (pose ou retrait)"],
- eleve:["Ablation hépatique, rénale ou pulmonaire","Recanalisation veineuse thoracique (veine cave supérieure)","Geste artériel avec désilet ≥ 7 F","Geste biliaire (drainage, cholécystostomie)","Bloc cervical ou infiltration péridurale","Drainage d'une collection profonde","Gastrostomie ou jéjunostomie de première intention","Biopsie pulmonaire ou repérage de nodule","Drain de LCS lombaire","Néphrostomie","Biopsie d'organe profond (foie, rein, prostate) ou ganglion / parties molles profonds","TIPS ou abord portal direct","Vertébroplastie, cyphoplastie"]
+/* ---------- assistant anticoagulants : protocole du service (CIRSE 2021) + CAR/CAIR 2026 ---------- */
+// m = [id, libellé, groupe, faible:{a:arrêt, d:jours, r:reprise}, élevé:{a, d, ab:arrêt si DFG<50, db, r}]
+const AC_REFS={
+ local:{label:"Protocole du service (CIRSE 2021)",
+  gestes:{faible:["Geste veineux (sauf TIPS, retrait complexe de filtre cave, système nerveux central)","Angiographie ± angioplastie","Embolisation","Biopsie superficielle","Échange de drain","Drainage superficiel","Infiltration articulaire","Biopsie osseuse périphérique"],
+          eleve:["TIPS","Retrait complexe de filtre cave","Geste veineux du système nerveux central","Geste artériel aortique","Gastrostomie (GPR) ou jéjunostomie","Biopsie ou geste sur foie, poumon, rein ou autre organe intra-abdominal","Néphrostomie","Geste biliaire","Thermoablation","Biopsie osseuse centrale","Cimentoplastie ou ostéosynthèse percutanée","Infiltration épidurale"]},
+  thrombo:"valve mécanique · FA avec antécédent d'AIT/AVC ou d'embolie systémique · MTEV à haut risque (TVP proximale et/ou EP de moins de 3 mois) · MTEV récidivante idiopathique (≥ 2 épisodes dont au moins un sans facteur déclenchant)",
+  bio:(hi,hep,avk)=> hi
+   ? `<b>Bilan systématique.</b><br>Hb &gt; 80 g/L · plaquettes &gt; 50 G/L · TP &gt; 50 % · TCA &lt; 1,5${avk?" · <b>INR &lt; 2,0</b> (AVK)":""}.`
+   : (avk?`<b>Bilan : INR</b> (patient sous AVK).<br>Plaquettes &gt; 20 G/L · TP &gt; 50 % · TCA &lt; 1,5 · <b>INR &lt; 2,0</b>.`:`<b>Pas de bilan</b> (seulement si AVK).<br>Si un bilan existe : plaquettes &gt; 20 G/L · TP &gt; 50 % · TCA &lt; 1,5.`),
+  mols:[
+   ["aspirine","Aspirine (Kardégic, Résitune, Aspirine Protect)","Antiagrégants",{a:"Pas d'arrêt. Kardégic 160 mg : passer à 75 mg à J−3",d:3,r:"6 h"},{a:"J−5 (J−3 si stent coronaire)",d:5,r:"H+6"}],
+   ["p2y12","Clopidogrel (Plavix), Duoplavin, ticagrélor (Brilique)","Antiagrégants",{a:"Pas d'arrêt",r:""},{a:"J−5",d:5,r:"H+6"}],
+   ["prasugrel","Prasugrel (Efient)","Antiagrégants",{a:"Non précisé par le protocole : avis de l'opérateur",r:""},{a:"J−7",d:7,r:"H+6"}],
+   ["avk","AVK (Coumadine, Préviscan, Sintrom)","AVK",{a:"Pas d'arrêt obligatoire. Vérifier l'INR",r:"J+1"},{a:"J−5. Relais par héparine à J−3 si risque thrombotique élevé",d:5,r:"J+1 ou J+2 (si relais : réintroduction de l'AVK)"}],
+   ["dabigatran","Dabigatran (Pradaxa)","AOD",{a:"Pas d'arrêt, ou dernière prise J−1",d:1,r:"6 h"},{a:"J−3",d:3,ab:"J−5 (DFG < 50)",db:5,r:"J+2 ou J+3 (si relais : J1 héparine, J2 AOD)",relais:"Relais par héparine à 12 h si risque thrombotique élevé"}],
+   ["xaban","Rivaroxaban (Xarelto), apixaban (Eliquis)","AOD",{a:"Pas d'arrêt, ou dernière prise J−1",d:1,r:"6 h"},{a:"J−2",d:2,ab:"J−5 (DFG < 50)",db:5,r:"J+2 ou J+3 (si relais : J1 héparine, J2 AOD)",relais:"Relais par héparine à 12 h si risque thrombotique élevé"}],
+   ["hbpmc","HBPM curative","Héparines",{a:"Arrêt 24 h avant",r:"6–12 h"},{a:"Arrêt 24 h avant",r:"J+2"}],
+   ["hbpmp","HBPM préventive","Héparines",{a:"Arrêt 12 h avant",r:"6–12 h"},{a:"Arrêt 12 h avant",r:"J+1"}],
+   ["hnfiv","HNF IV (pousse-seringue)","Héparines",{a:"Arrêt 4–6 h avant",r:"6 h"},{a:"Arrêt 4–6 h avant",r:"J+1"}],
+   ["hnfsc","HNF sous-cutanée","Héparines",{a:"Arrêt 8–12 h avant",r:"6 h"},{a:"Arrêt 8–12 h avant",r:"J+1"}],
+   ["fondap","Fondaparinux préventif","Héparines",{a:"Pas d'arrêt",r:""},{a:"Arrêt 36 h avant",r:"6–12 h"}],
+   ["fondac","Fondaparinux curatif","Héparines",{a:"Arrêt 48 h avant",r:"6–12 h"},{a:"J−2",d:2,r:"6–12 h"}]],
+  note:"Protocole affiché dans le service (CIRSE Standards of Practice 2021)."},
+ car:{label:"CAR/CAIR 2026 (fondée sur SIR 2019)",
+  gestes:{faible:["Biopsie, macrobiopsie, repérage ou drainage mammaire","Changement de cathéter, drain, sonde de néphrostomie ou de gastrostomie","Drain thoracique pour épanchement pleural","Artériographie diagnostique ou geste artériel, désilet ≤ 6 F ou voie radiale","Phlébographie et gestes veineux","Gestes sur abord de dialyse","Infiltration facettaire ou bloc de branche médiale (thoracique, lombaire)","Pose ou retrait de filtre cave","Ponction lombaire","Infiltration ostéo-articulaire, tendineuse ou musculaire","Bloc nerveux (sacré latéral, hypogastrique, plexus cœliaque)","Paracentèse","Drain péritonéal","Biopsie ou drainage superficiel (ganglion palpable, parties molles, thyroïde, os superficiel, moelle)","Ablation ostéo-articulaire superficielle","Cathéter sus-pubien","Thoracentèse","Biopsie hépatique transjugulaire","Voie veineuse centrale, PICC, chambre implantable"],
+          eleve:["Ablation hépatique, rénale ou pulmonaire","Recanalisation veineuse thoracique","Geste artériel avec désilet ≥ 7 F","Geste biliaire","Bloc cervical ou infiltration péridurale","Drainage d'une collection profonde","Gastrostomie ou jéjunostomie de première intention","Biopsie pulmonaire ou repérage de nodule","Drain de LCS lombaire","Néphrostomie","Biopsie d'organe profond ou ganglion / parties molles profonds","TIPS ou abord portal direct","Vertébroplastie, cyphoplastie"]},
+  thrombo:"stent, angioplastie, ablation, thrombose ou AVC/AIT de moins d'un an · valve mécanique",
+  hep:true,
+  bio:(hi,hep)=> hi ? `<b>À doser :</b> INR et plaquettes.<br><b>INR &lt; ${hep?"2,5":"1,8"}</b> · <b>plaquettes ≥ ${hep?"30":"50"} G/L</b>.` : `<b>Pas de bilan systématique.</b><br>Si un bilan existe : ${hep?"pas de cible d'INR":"INR ≤ 3,0"} · plaquettes ≥ 20 G/L.`,
+  mols:[
+   ["aspirine","Aspirine","Antiagrégants",{a:"Pas d'arrêt",r:""},{a:"5 jours avant",d:5,r:"le soir même"}],
+   ["clopidogrel","Clopidogrel","Antiagrégants",{a:"Pas d'arrêt",r:""},{a:"5 jours avant",d:5,r:"le soir même"}],
+   ["ticagrelor","Ticagrélor","Antiagrégants",{a:"Pas d'arrêt",r:""},{a:"3 jours avant",d:3,r:"le soir même"}],
+   ["prasugrel","Prasugrel","Antiagrégants",{a:"Pas d'arrêt",r:""},{a:"7 jours avant",d:7,r:"le soir même"}],
+   ["warfarine","Warfarine","AVK",{a:"Pas d'arrêt. INR à J−1 si habituellement au-dessus de la cible",r:""},{a:"5 jours avant",d:5,r:"le soir même (relais HBPM à J+1 à discuter si risque thrombotique élevé)"}],
+   ["apixaban","Apixaban","AOD",{a:"Pas d'arrêt",r:""},{a:"le soir, 2 jours avant",d:2,r:"J+1"}],
+   ["rivaroxaban","Rivaroxaban, édoxaban","AOD",{a:"Pas d'arrêt",r:""},{a:"2 jours avant",d:2,r:"J+1"}],
+   ["dabigatran","Dabigatran","AOD",{a:"Pas d'arrêt",r:""},{a:"le soir, 2 jours avant",d:2,ab:"le soir, 3 jours avant (DFG < 50)",db:3,r:"J+1"}],
+   ["hbpmc","HBPM curative","Héparines",{a:"Pas d'arrêt",r:""},{a:"24 h avant",r:"J+1"}],
+   ["hbpmp","HBPM préventive","Héparines",{a:"Pas d'arrêt",r:""},{a:"12 h avant",r:"le soir même"}],
+   ["hnfiv","HNF IV","Héparines",{a:"Pas d'arrêt",r:""},{a:"4–6 h avant",r:"6 h après"}],
+   ["hnfsc","HNF SC préventive","Héparines",{a:"Pas d'arrêt",r:""},{a:"8 h avant",r:"le soir même"}],
+   ["fondac","Fondaparinux curatif","Héparines",{a:"Pas d'arrêt",r:""},{a:"2 jours avant",d:2,ab:"3 jours avant (DFG < 50)",db:3,r:"J+1"}],
+   ["fondap","Fondaparinux préventif","Héparines",{a:"Pas d'arrêt",r:""},{a:"2 jours avant",d:2,ab:"3 jours avant (DFG < 50)",db:3,r:"le soir même"}]],
+  note:"Recommandation canadienne CAR/CAIR 2026, fondée sur SIR 2019."}
 };
-const AC_MOL=[
- // [id, libellé, groupe, dernière prise (risque élevé) [texte, jours avant ou null], reprise]
- ["aspirine","Aspirine","Antiagrégants",["5 jours avant",5],"le soir même"],
- ["clopidogrel","Clopidogrel","Antiagrégants",["5 jours avant",5],"le soir même"],
- ["ticagrelor","Ticagrélor","Antiagrégants",["3 jours avant",3],"le soir même"],
- ["prasugrel","Prasugrel","Antiagrégants",["7 jours avant",7],"le soir même"],
- ["asadip","Aspirine + dipyridamole","Antiagrégants",["3 jours avant",3],"le soir même"],
- ["warfarine","Warfarine (Coumadine)","AVK",["5 jours avant",5],"le soir même (relais HBPM à J+1 à discuter si risque thrombotique élevé)"],
- ["avkautre","Autre AVK (fluindione, acénocoumarol)","AVK",null,null],
- ["apixaban","Apixaban","AOD",["le soir, 2 jours avant",2],"J+1"],
- ["rivaroxaban","Rivaroxaban","AOD",["2 jours avant",2],"J+1"],
- ["edoxaban","Édoxaban","AOD",["2 jours avant",2],"J+1"],
- ["dabigatran","Dabigatran","AOD",["dfg"],"J+1"],
- ["hbpmc","HBPM curative","Héparines",["24 h avant",null],"J+1"],
- ["hbpmp","HBPM préventive","Héparines",["12 h avant",null],"le soir même"],
- ["hnfiv","Héparine non fractionnée IV","Héparines",["arrêt 4 à 6 h avant",null],"6 h après"],
- ["hnfsc","Héparine non fractionnée SC préventive","Héparines",["8 h avant",null],"le soir même"],
- ["fondac","Fondaparinux curatif","Héparines",["dfg"],"J+1"],
- ["fondap","Fondaparinux préventif","Héparines",["dfg"],"le soir même"],
-];
-const acState={geste:"",risque:"",hepato:false,mols:new Set(),dfg:"",thrombo:false,date:""};
-function acDate(days){ if(!acState.date||days==null) return ""; const d=new Date(acState.date+"T12:00:00"); d.setDate(d.getDate()-days); return " — "+d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"}); }
+let acRef="local"; try{ acRef=localStorage.getItem("q_acref")||"local"; }catch{}
+const acState={geste:"",hepato:false,mols:new Set(),dfg:"",thrombo:false,date:""};
+function acDate(days){ if(!acState.date||days==null) return ""; const d=new Date(acState.date+"T12:00:00"); d.setDate(d.getDate()-days); return ` <span class="note">(${d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})})</span>`; }
 function acHtml(){
+  const R=AC_REFS[acRef];
   const opt=(l)=>`<option ${acState.geste===l?"selected":""}>${esc(l)}</option>`;
-  const groups=[...new Set(AC_MOL.map(m=>m[2]))];
-  const needDfg=[...acState.mols].some(id=>["dabigatran","fondac","fondap"].includes(id));
+  const groups=[...new Set(R.mols.map(m=>m[2]))];
+  const needDfg=R.mols.some(m=>acState.mols.has(m[0]) && m[4].ab);
   return `<div class="ac" id="ac"><h3>Assistant : quoi faire avant le geste</h3>
-  <div><div class="st">1. Le geste</div><select data-ac="geste"><option value="">Choisir le geste…</option><optgroup label="Risque hémorragique faible">${AC_GESTES.faible.map(opt).join("")}</optgroup><optgroup label="Risque hémorragique élevé">${AC_GESTES.eleve.map(opt).join("")}</optgroup><optgroup label="Autre geste"><option ${acState.geste==="autre-faible"?"selected":""} value="autre-faible">Autre geste à risque faible</option><option ${acState.geste==="autre-eleve"?"selected":""} value="autre-eleve">Autre geste à risque élevé</option></optgroup></select></div>
-  <div><div class="st">2. Le patient</div><div class="opts"><label><input type="checkbox" data-ac="hepato" ${acState.hepato?"checked":""}>Hépatopathie chronique</label><label><input type="checkbox" data-ac="thrombo" ${acState.thrombo?"checked":""}>Risque thrombotique élevé</label></div><div class="grp">Risque thrombotique élevé : stent, angioplastie, ablation, thrombose ou AVC/AIT de moins d'un an, valve mécanique.</div></div>
-  <div><div class="st">3. Ses traitements</div>${groups.map(g=>`<div class="grp">${esc(g)}</div><div class="opts">${AC_MOL.filter(m=>m[2]===g).map(m=>`<label><input type="checkbox" data-acm="${m[0]}" ${acState.mols.has(m[0])?"checked":""}>${esc(m[1])}</label>`).join("")}</div>`).join("")}</div>
+  <div><div class="st">Référence</div><div class="opts">${Object.entries(AC_REFS).map(([k,r])=>`<label><input type="radio" name="acref" data-acref="${k}" ${acRef===k?"checked":""}>${esc(r.label)}</label>`).join("")}</div></div>
+  <div><div class="st">1. Le geste</div><select data-ac="geste"><option value="">Choisir le geste…</option><optgroup label="Risque hémorragique faible">${R.gestes.faible.map(opt).join("")}</optgroup><optgroup label="Risque hémorragique ${acRef==="local"?"modéré ou élevé":"élevé"}">${R.gestes.eleve.map(opt).join("")}</optgroup><optgroup label="Autre geste"><option ${acState.geste==="autre-faible"?"selected":""} value="autre-faible">Autre geste à risque faible</option><option ${acState.geste==="autre-eleve"?"selected":""} value="autre-eleve">Autre geste à risque ${acRef==="local"?"modéré ou élevé":"élevé"}</option></optgroup></select></div>
+  <div><div class="st">2. Le patient</div><div class="opts">${R.hep?`<label><input type="checkbox" data-ac="hepato" ${acState.hepato?"checked":""}>Hépatopathie chronique</label>`:""}<label><input type="checkbox" data-ac="thrombo" ${acState.thrombo?"checked":""}>Risque thrombotique élevé</label></div><div class="grp">Risque thrombotique élevé : ${esc(R.thrombo)}.</div></div>
+  <div><div class="st">3. Ses traitements</div>${groups.map(g=>`<div class="grp">${esc(g)}</div><div class="opts">${R.mols.filter(m=>m[2]===g).map(m=>`<label><input type="checkbox" data-acm="${m[0]}" ${acState.mols.has(m[0])?"checked":""}>${esc(m[1])}</label>`).join("")}</div>`).join("")}</div>
   ${needDfg?`<div><div class="st">4. Fonction rénale</div><div class="opts"><label><input type="radio" name="acdfg" data-acdfg="ok" ${acState.dfg==="ok"?"checked":""}>DFG ≥ 50 mL/min</label><label><input type="radio" name="acdfg" data-acdfg="bas" ${acState.dfg==="bas"?"checked":""}>DFG &lt; 50 mL/min</label></div></div>`:""}
   <div><div class="st">${needDfg?"5":"4"}. Date du geste (facultatif)</div><input type="date" data-ac="date" value="${esc(acState.date)}"></div>
   <div class="res" id="acres">${acResult()}</div></div>`;
 }
 function acResult(){
-  const g=acState.geste; if(!g) return `<div class="note">Choisis le geste pour commencer.</div>`;
-  const hi = g==="autre-eleve" || AC_GESTES.eleve.includes(g);
-  const h=[]; const hep=acState.hepato;
-  h.push(`<div class="risk ${hi?"hi":"lo"}">Geste à risque hémorragique ${hi?"ÉLEVÉ":"FAIBLE"}</div>`);
-  if(acState.thrombo) h.push(`<div class="alert"><b>Risque thrombotique élevé :</b> ne pas arrêter un antiagrégant sans l'avis du cardiologue ou du neurologue prescripteur. Relais par HBPM non systématique : à discuter avec un spécialiste de la thrombose (valve mécanique, thrombose très récente). Le geste peut parfois se faire sous traitement.</div>`);
-  // biologie
-  const bio = hi
-    ? `<b>À doser :</b> INR et plaquettes.<br>Seuils : <b>INR &lt; ${hep?"2,5":"1,8"}</b> · <b>plaquettes ≥ ${hep?"30":"50"} G/L</b>${hep?" (hépatopathie chronique)":""}.`
-    : `<b>Pas de bilan systématique.</b><br>Si un bilan existe : ${hep?"pas de cible d'INR":"INR ≤ 3,0"} · plaquettes ≥ 20 G/L.`;
-  h.push(`<div><div class="st">Biologie</div>${bio}<div class="note">Bilan valable 12 semaines chez un externe stable, 72 h chez un hospitalisé.</div></div>`);
-  const mols=AC_MOL.filter(m=>acState.mols.has(m[0]));
-  if(!mols.length){ h.push(`<div class="note">Aucun traitement coché : rien à arrêter.</div>`); }
+  const R=AC_REFS[acRef], g=acState.geste;
+  if(!g) return `<div class="note">Choisis le geste pour commencer.</div>`;
+  const hi = g==="autre-eleve" || R.gestes.eleve.includes(g);
+  const mols=R.mols.filter(m=>acState.mols.has(m[0]));
+  const avk=mols.some(m=>m[2]==="AVK");
+  const h=[`<div class="risk ${hi?"hi":"lo"}">Geste à risque hémorragique ${hi?(acRef==="local"?"MODÉRÉ OU ÉLEVÉ":"ÉLEVÉ"):"FAIBLE"}</div>`];
+  if(acState.thrombo) h.push(`<div class="alert"><b>Risque thrombotique élevé :</b> pas d'arrêt d'antiagrégant sans l'avis du cardiologue ou du neurologue prescripteur.${acRef==="local"?" Relais par héparine selon le protocole (voir les traitements ci-dessous).":" Relais par HBPM non systématique, à discuter avec un spécialiste."}</div>`);
+  h.push(`<div><div class="st">Biologie</div>${R.bio(hi,acState.hepato,avk)}${acRef==="car"?`<div class="note">Bilan valable 12 semaines chez un externe stable, 72 h chez un hospitalisé.</div>`:""}</div>`);
+  if(!mols.length) h.push(`<div class="note">Aucun traitement coché : rien à arrêter.</div>`);
   else{
-    const rows=mols.map(m=>{
-      if(m[0]==="avkautre") return `<tr><td>${esc(m[1])}</td><td colspan="2">Non couvert par la recommandation (demi-vies différentes de la warfarine) : protocole du service ou avis du prescripteur, INR à J−1.</td></tr>`;
-      if(!hi){ const w = m[0]==="warfarine" ? "Ne pas arrêter. Si INR habituellement au-dessus de la cible : INR à J−1, vitamine K orale si besoin." : "Ne pas arrêter."; return `<tr><td>${esc(m[1])}</td><td colspan="2">${w}</td></tr>`; }
-      let last=m[3], txt, days;
-      if(last[0]==="dfg"){
-        if(!acState.dfg) return `<tr><td>${esc(m[1])}</td><td colspan="2">Renseigne le DFG.</td></tr>`;
-        const bas=acState.dfg==="bas";
-        if(m[0]==="dabigatran"){ txt=bas?"le soir, 3 jours avant":"le soir, 2 jours avant"; days=bas?3:2; }
-        else { txt=bas?"3 jours avant":"2 jours avant"; days=bas?3:2; }
-      } else { txt=last[0]; days=last[1]; }
-      const anti = m[2]==="Antiagrégants" && acState.thrombo ? `<br><b>Avis du prescripteur avant tout arrêt.</b>` : "";
-      return `<tr><td>${esc(m[1])}</td><td><b>Dernière prise ${esc(txt)}</b>${acDate(days)}${anti}</td><td>${esc(m[4])}</td></tr>`;
-    }).join("");
-    h.push(`<table><tr><th>Traitement</th><th>${hi?"Avant":"Conduite"}</th>${hi?"<th>Reprise</th>":""}</tr>${rows.replace(/<td colspan="2">/g, hi?'<td colspan="2">':'<td>')}</table>`);
-    if(hi && mols.some(m=>m[2]==="AOD")) h.push(`<div class="note">Geste urgent sous AOD : doser si possible (anti-Xa &lt; 50 ng/mL ou temps de thrombine dilué &lt; 50 s = effet minime), sinon discuter un antidote. La décision revient à l'opérateur.</div>`);
+    const rows=mols.map(m=>{ const x=hi?m[4]:m[3];
+      let a=x.a, d=x.d;
+      if(hi && x.ab){ if(!acState.dfg) return `<tr><td>${esc(m[1])}</td><td colspan="2">Renseigne le DFG.</td></tr>`; if(acState.dfg==="bas"){ a=x.ab; d=x.db; } }
+      const extra = (hi && x.relais && acState.thrombo) ? `<br><b>${esc(x.relais)}</b>` : "";
+      const anti = (m[2]==="Antiagrégants" && acState.thrombo && hi) ? `<br><b>Avis du prescripteur avant tout arrêt.</b>` : "";
+      const isStop=!/^Pas d'arrêt\.?$/.test(a);
+      return `<tr><td>${esc(m[1])}</td><td>${isStop?"<b>":""}${esc(a)}${isStop?"</b>":""}${/J−\d/.test(a)||/jours? avant/.test(a)?acDate(d):""}${extra}${anti}</td><td>${esc(x.r||"—")}</td></tr>`; }).join("");
+    h.push(`<table><tr><th>Traitement</th><th>Arrêt</th><th>Reprise</th></tr>${rows}</table>`);
+    if(hi && mols.some(m=>m[2]==="AOD")) h.push(`<div class="note">Geste urgent sous AOD : doser si possible (anti-Xa &lt; 50 ng/mL = effet minime), sinon discuter un antidote. Décision de l'opérateur.</div>`);
   }
-  h.push(`<div class="note">Référence : CAR/CAIR 2026 (fondée sur SIR 2019). Le protocole de ton service prime. Aide-mémoire, ne remplace pas l'avis de l'opérateur.</div>`);
+  h.push(`<div class="note">${esc(R.note)} Aide-mémoire : ne remplace pas l'avis de l'opérateur.</div>`);
   return h.join("");
 }
-function acRefresh(full){ const box=$("#ac"); if(!box) return; if(full){ box.outerHTML=acHtml(); } else { $("#acres").innerHTML=acResult(); } }
+function acRefresh(full){ const box=$("#ac"); if(!box) return; if(full) box.outerHTML=acHtml(); else $("#acres").innerHTML=acResult(); }
 document.addEventListener("change",e=>{
   const t=e.target; if(!t.closest||!t.closest("#ac")) return;
+  if(t.dataset.acref){ acRef=t.dataset.acref; try{localStorage.setItem("q_acref",acRef);}catch{} acState.geste=""; acState.mols.clear(); acRefresh(true); return; }
   if(t.dataset.ac==="geste"){ acState.geste=t.value; acRefresh(false); return; }
   if(t.dataset.ac==="hepato"){ acState.hepato=t.checked; acRefresh(false); return; }
   if(t.dataset.ac==="thrombo"){ acState.thrombo=t.checked; acRefresh(false); return; }
