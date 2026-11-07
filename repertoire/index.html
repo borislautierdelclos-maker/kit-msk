@@ -252,6 +252,9 @@ li.figli{list-style:none}
 .perso [style*="background-color"],.ed [style*="background-color"]{color:#16202A;border-radius:3px;padding:0 1px}
 mark{background:#ffe58a;color:#16202A;border-radius:3px;padding:0 1px}
 .persobar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--ink-soft);border-radius:var(--r);padding:8px 12px;margin-top:12px;font-size:.86rem}
+.pipe{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;border-radius:10px;padding:8px 12px;font-size:.84rem;background:var(--sunk);color:var(--muted)}
+.pipe.warn{background:var(--warn-soft);color:var(--warn)}.pipe.stop{background:var(--danger-soft);color:var(--danger)}
+.pipe b{color:inherit}.pipe select{padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 .today{margin-top:14px;background:var(--surface);border:1.5px solid var(--ink);border-radius:14px;padding:14px;display:grid;gap:10px}
 .today .th{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .today h2{margin:0;font-family:var(--f-display);font-size:1.05rem}
@@ -483,8 +486,8 @@ function todayList(){
   if(!state.ready || !state.progReady || !state.fiches.length || !state.db) return [];
   const verified=f=>f.statut==="verifiee"||f.verified_at;
   const pool=state.fiches.filter(f=>!verified(f) && (f.type==="entite"||f.type==="signe"||f.type==="comparatif"));
-  const rank=f=>{ const i=PRIO.indexOf(f.surspe); return i<0?99:i; };
-  pool.sort((a,b)=>rank(a)-rank(b) || String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  let seed=[...today].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7); const rnd=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);
+  pool.forEach(f=>f._r=rnd()); pool.sort((a,b)=>a._r-b._r);   // mélange du jour, stable dans la journée
   // un peu de variété : on alterne les surspés en tête de liste
   const pick=[], used=new Set();
   for(const f of pool){ if(pick.length>=progObjectif()) break; if(!used.has(f.surspe)||pool.filter(x=>!pick.includes(x)&&!used.has(x.surspe)).length===0){ pick.push(f); used.add(f.surspe); } }
@@ -507,6 +510,19 @@ function todayHtml(){
    <div class="tfoot"><span>Lis la fiche, puis « Vérifiée : l'ajouter à la révision ».${due?` Ensuite : <button class="linkbtn" id="revbtn2">${due} carte${due>1?"s":""} à réviser</button>`:""}</span>
    <label>Objectif <select id="progobj">${[3,4,5,6,8,10].map(n=>`<option ${n===obj?"selected":""}>${n}</option>`).join("")}</select> /jour</label></div></section>`;
 }
+function pipeHtml(){
+  const P=state.pipe; if(!P) return "";
+  const pend=state.queue.filter(x=>["pending","processing"].includes(x.status)).length;
+  const h=Math.round((+P.minutes_jour||0)/6)/10, cap=+P.plafond_heures||8, ratio=h/cap;
+  const t=s=>s?new Date(s).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):"";
+  let cls="", txt;
+  if(P.pause===true) { cls="warn"; txt="<b>Rédaction en pause</b> (à ta demande)"; }
+  else if(P.etat==="limite"){ cls="stop"; txt=`<b>Limite d'utilisation Claude atteinte</b>${P.reprise?` : reprise automatique vers ${t(P.reprise)}`:""}`; }
+  else if(P.etat==="plafond"){ cls="stop"; txt=`<b>Plafond du jour atteint</b> (${h} h / ${cap} h) : reprise demain`; }
+  else { cls= ratio>=0.8?"warn":""; txt=`Rédaction ${P.etat==="en_cours"?"<b>en cours</b>":"en attente"} · ${pend} demande${pend>1?"s":""} · ${h} h aujourd'hui sur ${cap} h${ratio>=0.8?" : <b>bientôt le plafond</b>":""}`; }
+  return `<div class="pipe ${cls}"><span>${txt}</span><span><label>Plafond <select id="pipecap">${[2,4,6,8,10,12,16,24].map(n=>`<option ${n===cap?"selected":""}>${n}</option>`).join("")}</select> h/j</label> · <button class="linkbtn" id="pipepause">${P.pause===true?"Reprendre":"Pause"}</button></span></div>`;
+}
+document.addEventListener("change", e=>{ if(e.target.id==="pipecap"){ state.db.collection(COL.meta).doc("pipeline").set({plafond_heures:+e.target.value},{merge:true}).catch(()=>toast("Impossible.")); } });
 function appBadge(){ try{ const today=dkey(Date.now()); const left=Math.max(0,progObjectif()-doneOn(today)); let due=0; try{ const i=dueInfo(); due=i.due.length; }catch{}
   const n=left+due; if(navigator.setAppBadge){ n?navigator.setAppBadge(n):navigator.clearAppBadge(); } }catch{} }
 document.addEventListener("change", e=>{ if(e.target.id==="progobj"){ const v=+e.target.value; state.prog={...(state.prog||{}),objectif:v}; const t=dkey(Date.now()); if(state.prog.days) delete state.prog.days[t];
@@ -525,7 +541,7 @@ function renderList(){
     main.innerHTML = html; return;
   }
   const list = visible();
-  if(!state.filter && !state.fam) html += todayHtml();
+  if(!state.filter && !state.fam) html += pipeHtml() + todayHtml();
   if(!state.fiches.length){
     html += `<div class="empty"><h2>Aucune fiche pour l'instant</h2><p>Tape le nom d'une entité croisée en stage ou sur un cas, avec si tu veux deux mots de contexte. La fiche (épidémio, clinique, imagerie, DD, pièges) est rédigée à partir du topo Radiopaedia et apparaît ici toute seule.</p><button class="btn primary" data-add="1">Ficher une première entité</button></div>`;
     main.innerHTML = html; return;
@@ -660,6 +676,7 @@ document.addEventListener("click", async e=>{
   if(t.id==="homebtn"){ goHome(); return; }
   if(t.dataset.sugok){ state.db.collection(COL.queue).doc(t.dataset.sugok).update({status:"pending"}).catch(()=>toast("Impossible.")); toast("Gamme demandée"); return; }
   if(t.dataset.sugno){ state.db.collection(COL.queue).doc(t.dataset.sugno).update({status:"ignored"}).catch(()=>toast("Impossible.")); return; }
+  if(t.id==="pipepause"){ const on=!(state.pipe&&state.pipe.pause===true); state.db.collection(COL.meta).doc("pipeline").set({pause:on},{merge:true}).then(()=>toast(on?"Rédaction mise en pause (la session en cours se termine)":"Rédaction relancée")).catch(()=>toast("Impossible.")); return; }
   if(t.id==="revbtn2"){ startReview(); window.scrollTo(0,0); return; }
   if(t.id==="revbtn"){ startReview(); window.scrollTo(0,0); return; }
   if(t.dataset.show){ state.sess.shown=true; renderReview(); return; }
@@ -1209,6 +1226,7 @@ async function seedIfNeeded(db){
   db.collection(COL.fiches).onSnapshot(s=>{ state.fiches = s.docs.map(d=>({id:d.id,...d.data()})); state.ready=true;
     if(state.open && ED.fid===state.open && !ED.dirty && !ED.saveT){ const cur=state.fiches.find(x=>x.id===state.open); if(cur && (cur.perso_at||"")!==(ED.loaded||"") && !($("#ed")&&$("#ed").contains(document.activeElement))){ ED.fid=null; ED.hist=[]; } } if((state.mode==="review" && state.sess) || (state.open && !state.mode && $("#ed") && ED.fid===state.open && (ED.dirty || ED.saveT || $("#ed").contains(document.activeElement)))){ updateBadge(); renderChips(); } else render(); }, e=>{ console.error(e); state.ready=true; render(); toast("Lecture des fiches impossible : "+(e&&e.code||"erreur")); });
   db.collection(COL.queue).onSnapshot(s=>{ state.queue = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))); if(state.mode!=="review" && !(state.open && $("#ed") && (ED.dirty || ED.saveT || $("#ed").contains(document.activeElement)))) state.open ? renderFiche() : renderList(); }, ()=>{});
+  db.collection(COL.meta).doc("pipeline").onSnapshot(d=>{ state.pipe=d.exists?d.data():{}; if(!state.open && !state.mode) renderList(); }, ()=>{});
   db.collection(COL.meta).doc("programme").onSnapshot(d=>{ state.prog=d.exists?d.data():{}; state.progReady=true; if(!state.open && !state.mode) renderList(); }, ()=>{ state.progReady=true; });
   db.collection(COL.srs).onSnapshot(s=>{ state.srs = Object.fromEntries(s.docs.map(d=>[d.id,d.data()])); state.srsReady=true; if(state.mode==="review" && !state.sess) renderReview(); updateBadge(); }, ()=>{ state.srsReady=true; });
   seedIfNeeded(db);
