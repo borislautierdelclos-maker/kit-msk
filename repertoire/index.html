@@ -894,6 +894,7 @@ function edTarget(x,y){
   if(!el || !ed.contains(el) || el===ed){ const kids=[...ed.children].filter(c=>c!==ED.drag.fig); if(!kids.length) return null; const last=kids[kids.length-1], first=kids[0];
     return y < first.getBoundingClientRect().top ? {el:first,before:true} : {el:last,before:false}; }
   let b=el.closest("li, p, h2, h3, h4, figure, .tw, table, .dd > div, .key, .mod, section");
+  if(b && b.tagName==="FIGURE" && !b.parentNode.classList.contains("gal") && b!==ED.drag.fig && innerWidth>=700 && !b.classList.contains("sz-xl")){ const r=b.getBoundingClientRect(); if(y>r.top+r.height*0.15 && y<r.bottom-r.height*0.15) return {el:b, before: x < r.left + r.width/2, side:true}; }
   if(b && b.tagName==="FIGURE" && b.parentNode.classList.contains("gal")){ const r=b.getBoundingClientRect(); if(b===ED.drag.fig) return null; return {el:b, before: (getComputedStyle(b.parentNode).display==="flex"||r.width<innerWidth*0.6) ? x < r.left + r.width/2 : y < r.top + r.height/2, side:true}; }
   if(!b || !ed.contains(b)) b=el; while(b.parentNode!==ed && !b.matches("li, p, h2, h3, h4, .dd > div, figure")) b=b.parentNode;
   if(b.matches(".mod,section,.key")===false && b.parentNode===ed){} 
