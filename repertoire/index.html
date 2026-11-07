@@ -448,7 +448,7 @@ function rowHtml(f){
   const k = (f.cle||"").replace(/\*\*/g,"");
   return `<button class="row" data-id="${esc(f.id)}"><span class="n">${esc(f.nom)}${f.type==="memo"?'<span class="kind">mémo</span>':f.type==="comparatif"?'<span class="kind">gamme</span>':f.type==="signe"?'<span class="kind">signe</span>':""}</span>${statusPill(f)}<span class="k">${esc(k)}</span></button>`;
 }
-function statusPill(f){return f.statut==="verifiee"?`<span class="st ok">vérifiée</span>`:`<span class="st av">à vérifier</span>`}
+function statusPill(f){return (f.statut==="verifiee"||f.verified_at)?`<span class="st ok">vérifiée</span>`:`<span class="st av">à vérifier</span>`}
 function queueHtml(){
   const sugg = state.queue.filter(x=>x.status==="suggestion");
   const sHtml = sugg.map(x=>`<div class="sugg"><div><small>Gamme proposée</small><b>${esc(x.nom)}</b>${arr(x.entites_noms).length?`<span>${arr(x.entites_noms).map(esc).join(" · ")}</span>`:""}</div><div class="sb"><button class="btn primary" data-sugok="${esc(x.id)}">Créer</button><button class="btn" data-sugno="${esc(x.id)}">Ignorer</button></div></div>`).join("");
@@ -630,7 +630,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.drop){ state.db.collection(COL.queue).doc(t.dataset.drop).delete().catch(()=>toast("Suppression impossible.")); return; }
   const f = state.fiches.find(x=>x.id===state.open);
   if(!f) return;
-  if(t.dataset.verify){ const v=f.statut!=="verifiee"; state.db.collection(COL.fiches).doc(f.id).update(v?{statut:"verifiee",verified_at:new Date().toISOString()}:{statut:"a_verifier"}).catch(()=>toast("Modification impossible."));
+  if(t.dataset.verify){ const v=f.statut!=="verifiee"; state.db.collection(COL.fiches).doc(f.id).update(v?{statut:"verifiee",verified_at:new Date().toISOString()}:{statut:"a_verifier",verified_at:firebase.firestore.FieldValue.delete()}).catch(()=>toast("Modification impossible."));
     const n=arr(f.cartes).length; toast(v ? (n?`Fiche bossée : ses ${n} cartes entrent en révision`:"Fiche vérifiée") : "Fiche repassée à vérifier : plus de nouvelles cartes"); return; }
   if(t.dataset.size){ const i=+t.dataset.i; const ims=arr(f.images).map(x=>({...x})); ims[i].size=t.dataset.size; saveImages(f,ims); return; }
   if(t.dataset.cap!==undefined){ state.capFor=+t.dataset.cap; renderFiche(); setTimeout(()=>$("#capin")?.focus(),30); return; }
@@ -1002,7 +1002,7 @@ function dueInfo(){
   const due=pool.filter(x=>state.srs[x.key] && state.srs[x.key].due<=now).sort((a,b)=>state.srs[a.key].due-state.srs[b.key].due);
   const today=dayKey(now);
   const newToday=Object.values(state.srs).filter(v=>v.first && dayKey(v.first)===today).length;
-  const fresh=pool.filter(x=>!state.srs[x.key] && x.f.statut==="verifiee").sort((a,b)=>String(b.f.verified_at||b.f.created_at||"").localeCompare(String(a.f.verified_at||a.f.created_at||""))||String(a.key).localeCompare(String(b.key)));
+  const fresh=pool.filter(x=>!state.srs[x.key] && (x.f.statut==="verifiee" || x.f.verified_at)).sort((a,b)=>String(b.f.verified_at||b.f.created_at||"").localeCompare(String(a.f.verified_at||a.f.created_at||""))||String(a.key).localeCompare(String(b.key)));
   return {pool, due, fresh, newLeft:Math.max(0,NEW_PER_DAY-newToday)};
 }
 function updateBadge(){
