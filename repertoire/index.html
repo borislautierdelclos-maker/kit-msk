@@ -785,7 +785,7 @@ function prepEditorDom(root){
 }
 function edInit(f){
   const ed=$("#ed"); if(!ed) return; prepEditorDom(ed);
-  if(ED.fid!==f.id){ ED.fid=f.id; ED.hist=[ed.innerHTML]; ED.idx=0; ED.base=edClean(ed.innerHTML); }
+  if(ED.fid!==f.id){ ED.fid=f.id; ED.hist=[ed.innerHTML]; ED.idx=0; ED.base=edClean(ed.innerHTML); ED.dirty=false; ED.loaded=f.perso_at||""; }
   ED.sel=null; edPill();
 }
 function edPill(){
@@ -795,15 +795,17 @@ function edPill(){
   p.innerHTML=`<button data-ed="undo" ${ED.idx<=0?"disabled":""} aria-label="Annuler">↶</button><button data-ed="redo" ${ED.idx>=ED.hist.length-1?"disabled":""} aria-label="Rétablir">↷</button><span id="savest">${ED.saveT?"…":"enregistré"}</span>`;
 }
 function edSnap(){ const ed=$("#ed"); if(!ed) return; if(!ED.typing) edRegroup(ed); const h=ed.innerHTML.replace(/ class="fig ([^"]*?) ?sel"/g,' class="fig $1"'); if(ED.hist[ED.idx]===h) return;
-  ED.hist=ED.hist.slice(0,ED.idx+1); ED.hist.push(h); if(ED.hist.length>200) ED.hist.shift(); ED.idx=ED.hist.length-1; edSchedule(); }
-function edRestore(i){ const ed=$("#ed"); ED.idx=i; ed.innerHTML=ED.hist[i]; prepEditorDom(ed); edSelect(null); edSchedule(); }
+  ED.hist=ED.hist.slice(0,ED.idx+1); ED.hist.push(h); if(ED.hist.length>200) ED.hist.shift(); ED.idx=ED.hist.length-1; if(!ED.typing && !ED.userAct) { edPill(); return; } ED.dirty=true; edSchedule(); }
+function edRestore(i){ const ed=$("#ed"); ED.idx=i; ed.innerHTML=ED.hist[i]; prepEditorDom(ed); edSelect(null); ED.dirty=true; edSchedule(); }
 function edSchedule(){ clearTimeout(ED.saveT); ED.saveT=setTimeout(()=>{ ED.saveT=null; edSave(); },1200); edPill(); }
 function edSave(){
   const f=state.fiches.find(x=>x.id===ED.fid); const ed=$("#ed"); if(!f||!ed) return;
+  if(!ED.dirty){ edPill(); return; }
   const html=edClean(ed.innerHTML);
-  if(html===ED.base && !f.perso_html){ edPill(); return; }
+  if(html===ED.base && !f.perso_html){ ED.dirty=false; edPill(); return; }
+  if((f.perso_at||"") > ED.loaded && f.perso_html!==html){ toast("Cette fiche a été modifiée ailleurs : je garde tes modifications d'ici."); }
   if(html.length>800000){ toast("Fiche trop lourde pour être enregistrée."); return; }
-  const at=new Date().toISOString(); f.perso_html=html; f.perso_at=at;
+  const at=new Date().toISOString(); f.perso_html=html; f.perso_at=at; ED.loaded=at; ED.dirty=false;
   state.db.collection(COL.fiches).doc(f.id).update({perso_html:html, perso_at:at}).then(()=>edPill()).catch(()=>toast("Enregistrement impossible"));
   edPill();
 }
@@ -857,7 +859,8 @@ function edFormat(c, btn){
   else if(c==="caps"){ const t=sl.toString(); if(t) document.execCommand("insertText",false, t===t.toUpperCase()?t.toLowerCase():t.toUpperCase()); }
   edSnap(); edBubble();
 }
-function edAction(c, btn){
+function edAction(c, btn){ edUser(()=>edAction0(c,btn)); }
+function edAction0(c, btn){
   if(c==="undo"){ if(ED.idx>0) edRestore(ED.idx-1); return; }
   if(c==="redo"){ if(ED.idx<ED.hist.length-1) edRestore(ED.idx+1); return; }
   if(c==="sz"){ if(ED.sel){ const fg=ED.sel; fg.className=fg.className.replace(/sz-\w+/,"sz-"+btn.dataset.z); edSnap(); edSelect(fg); fg.scrollIntoView({block:"nearest"}); } return; }
@@ -876,10 +879,11 @@ document.addEventListener("click", e=>{
   if(ED.sel) edSelect(null);
 }, true);
 document.addEventListener("input", e=>{ if(e.target.closest && e.target.closest("#ed")){ clearTimeout(ED.t); ED.t=setTimeout(()=>{ ED.typing=true; edSnap(); ED.typing=false; },500); } });
+function edUser(fn){ ED.userAct=true; try{ fn(); } finally { ED.userAct=false; } }
 document.addEventListener("keydown", e=>{
   if(!$("#ed")) return;
   const k=e.key.toLowerCase(), mod=e.metaKey||e.ctrlKey;
-  if(mod && k==="z"){ e.preventDefault(); clearTimeout(ED.t); edSnap(); edAction(e.shiftKey?"redo":"undo"); }
+  if(mod && k==="z"){ e.preventDefault(); clearTimeout(ED.t); ED.typing=true; edSnap(); ED.typing=false; edAction(e.shiftKey?"redo":"undo"); }
   else if(mod && k==="y"){ e.preventDefault(); edAction("redo"); }
   else if(mod && (k==="b"||k==="i"||k==="u") && $("#ed").contains(document.activeElement)){ e.preventDefault(); edFormat(k==="b"?"bold":k==="i"?"italic":"underline"); }
   else if(mod && k==="h" && $("#ed").contains(document.activeElement)){ e.preventDefault(); edFormat("hilite"); }
@@ -915,7 +919,8 @@ function edDragStart(fig,x,y){
 }
 function edDragMove(x,y){ const D=ED.drag; if(!D) return; D.ghost.style.left=(x-60)+"px"; D.ghost.style.top=(y-40)+"px"; D.t=edTarget(x,y); edShowLine(D.t);
   if(y<70) scrollBy(0,-14); else if(y>innerHeight-70) scrollBy(0,14); }
-function edDragEnd(){ const D=ED.drag; if(!D) return; ED.drag=null; D.ghost.remove(); D.fig.classList.remove("dragging"); edShowLine(null);
+function edDragEnd(){ edUser(edDragEnd0); }
+function edDragEnd0(){ const D=ED.drag; if(!D) return; ED.drag=null; D.ghost.remove(); D.fig.classList.remove("dragging"); edShowLine(null);
   if(D.t){ const oldLi=D.fig.closest("li.figli"); let node=D.fig;
     if(D.t.el.tagName==="LI"){ const li=oldLi||document.createElement("li"); li.className="figli"; li.appendChild(D.fig); node=li; } else if(oldLi){ oldLi.replaceWith(); }
     D.t.before ? D.t.el.before(node) : D.t.el.after(node); if(oldLi && node!==oldLi) oldLi.remove();
@@ -941,7 +946,8 @@ document.addEventListener("touchend", ()=>{ if(!edPress) return; clearTimeout(ed
 document.addEventListener("touchcancel", ()=>{ if(!edPress) return; clearTimeout(edPress.timer); if(edPress.on) edDragEnd(); edPress=null; });
 /* ajouter, coller, déposer des images dans le texte */
 function edCaretNode(){ const s=getSelection(); const ed=$("#ed"); return s.rangeCount && ed && ed.contains(s.anchorNode) ? s.anchorNode : (ED.range && ed && ed.contains(ED.range.startContainer) ? ED.range.startContainer : null); }
-function edInsertFigs(ups, atNode, before){
+function edInsertFigs(ups, atNode, before){ edUser(()=>edInsertFigs0(ups, atNode, before)); }
+function edInsertFigs0(ups, atNode, before){
   const ed=$("#ed"); let ref=atNode && (atNode.nodeType===1?atNode:atNode.parentNode);
   while(ref && ref!==ed && ref.parentNode!==ed && !/^(LI|P|H2|H3|H4)$/.test(ref.tagName)) ref=ref.parentNode;
   ups.forEach(u=>{ const w=document.createElement("div"); w.innerHTML=figEdHtml({...u,size:"l"}); let node=w.firstChild;
@@ -959,7 +965,7 @@ document.addEventListener("paste", async e=>{
   if(!$("#ed") || !e.target.closest || !e.target.closest("#ed")) return; e.stopImmediatePropagation();
   const files=[...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith("image/"));
   if(files.length){ e.preventDefault(); const at=edCaretNode(); try{ edInsertFigs(await uploadImages(files), at); }catch{ toast("Image non ajoutée."); } return; }
-  const t=e.clipboardData?.getData("text/plain"); if(t){ e.preventDefault(); document.execCommand("insertText",false,t); edSnap(); }
+  const t=e.clipboardData?.getData("text/plain"); if(t){ e.preventDefault(); document.execCommand("insertText",false,t); edUser(edSnap); }
 }, true);
 document.addEventListener("dragover", e=>{ if($("#ed") && e.target.closest && e.target.closest("#ed")){ e.stopImmediatePropagation(); e.preventDefault(); ED.drag=ED.drag||{fig:document.createElement("i")}; const t=edTarget(e.clientX,e.clientY); ED.extT=t; edShowLine(t); } }, true);
 document.addEventListener("dragleave", e=>{ if($("#ed") && !$("#ed").contains(e.relatedTarget)){ edShowLine(null); if(ED.drag&&!ED.drag.ghost) ED.drag=null; } }, true);
@@ -1148,8 +1154,9 @@ async function seedIfNeeded(db){
   const db = firebase.firestore();
   db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   state.db = db;
-  db.collection(COL.fiches).onSnapshot(s=>{ state.fiches = s.docs.map(d=>({id:d.id,...d.data()})); state.ready=true; if((state.mode==="review" && state.sess) || (state.open && !state.mode && $("#ed") && (ED.hist.length>1 || $("#ed").contains(document.activeElement)))){ updateBadge(); renderChips(); } else render(); }, e=>{ console.error(e); state.ready=true; render(); toast("Lecture des fiches impossible : "+(e&&e.code||"erreur")); });
-  db.collection(COL.queue).onSnapshot(s=>{ state.queue = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))); if(state.mode!=="review" && !(state.open && $("#ed") && (ED.hist.length>1 || $("#ed").contains(document.activeElement)))) state.open ? renderFiche() : renderList(); }, ()=>{});
+  db.collection(COL.fiches).onSnapshot(s=>{ state.fiches = s.docs.map(d=>({id:d.id,...d.data()})); state.ready=true;
+    if(state.open && ED.fid===state.open && !ED.dirty && !ED.saveT){ const cur=state.fiches.find(x=>x.id===state.open); if(cur && (cur.perso_at||"")!==(ED.loaded||"") && !($("#ed")&&$("#ed").contains(document.activeElement))){ ED.fid=null; ED.hist=[]; } } if((state.mode==="review" && state.sess) || (state.open && !state.mode && $("#ed") && ED.fid===state.open && (ED.dirty || ED.saveT || $("#ed").contains(document.activeElement)))){ updateBadge(); renderChips(); } else render(); }, e=>{ console.error(e); state.ready=true; render(); toast("Lecture des fiches impossible : "+(e&&e.code||"erreur")); });
+  db.collection(COL.queue).onSnapshot(s=>{ state.queue = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))); if(state.mode!=="review" && !(state.open && $("#ed") && (ED.dirty || ED.saveT || $("#ed").contains(document.activeElement)))) state.open ? renderFiche() : renderList(); }, ()=>{});
   db.collection(COL.srs).onSnapshot(s=>{ state.srs = Object.fromEntries(s.docs.map(d=>[d.id,d.data()])); state.srsReady=true; if(state.mode==="review" && !state.sess) renderReview(); updateBadge(); }, ()=>{ state.srsReady=true; });
   seedIfNeeded(db);
 })();
