@@ -252,6 +252,16 @@ li.figli{list-style:none}
 .perso [style*="background-color"],.ed [style*="background-color"]{color:#16202A;border-radius:3px;padding:0 1px}
 mark{background:#ffe58a;color:#16202A;border-radius:3px;padding:0 1px}
 .persobar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--ink-soft);border-radius:var(--r);padding:8px 12px;margin-top:12px;font-size:.86rem}
+.today{margin-top:14px;background:var(--surface);border:1.5px solid var(--ink);border-radius:14px;padding:14px;display:grid;gap:10px}
+.today .th{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.today h2{margin:0;font-family:var(--f-display);font-size:1.05rem}
+.today .streak{font-size:.85rem;color:var(--muted);white-space:nowrap}
+.today .bar{height:6px;background:var(--sunk);border-radius:99px;overflow:hidden}.today .bar i{display:block;height:100%;background:var(--ok)}
+.today ol{margin:0;padding-left:20px;display:grid;gap:4px}
+.today li button{border:0;background:none;padding:2px 0;text-align:left;font-size:.95rem;color:var(--fg)}
+.today li.ok button{color:var(--muted);text-decoration:line-through}
+.today .tfoot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;font-size:.85rem;color:var(--muted)}
+.today select{padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 .revbtn{background:var(--surface);color:var(--ink);border:1.5px solid var(--ink)}
 .revbtn .badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--ink);color:var(--surface);font-size:.74rem;display:inline-grid;place-items:center}
 .revbtn .badge:empty{display:none}
@@ -462,6 +472,46 @@ function queueHtml(){
     return `<div class="qitem"><span class="pulse"></span><span class="qn">${lbl}</span><span class="qs">${s}</span></div>`;
   }).join("") + `</div>` + sHtml;
 }
+/* ---------- programme du jour ---------- */
+const PRIO=["MSK","Rachis","Trauma","Sein","Neuro","Thorax","Digestif","Uro","Gynéco","Vasculaire","Onco","Hémato","Interventionnel","Transversal","Cardiaque","Pédiatrie","ORL"];
+const dkey=d=>{ const x=new Date(d); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); };
+function progObjectif(){ return (state.prog&&state.prog.objectif)||5; }
+function todayList(){
+  const today=dkey(Date.now()), P=state.prog||{}, days=P.days||{};
+  const byId=id=>state.fiches.find(f=>f.id===id);
+  if(days[today]) return days[today].map(byId).filter(Boolean);
+  if(!state.ready || !state.progReady || !state.fiches.length || !state.db) return [];
+  const verified=f=>f.statut==="verifiee"||f.verified_at;
+  const pool=state.fiches.filter(f=>!verified(f) && (f.type==="entite"||f.type==="signe"||f.type==="comparatif"));
+  const rank=f=>{ const i=PRIO.indexOf(f.surspe); return i<0?99:i; };
+  pool.sort((a,b)=>rank(a)-rank(b) || String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  // un peu de variété : on alterne les surspés en tête de liste
+  const pick=[], used=new Set();
+  for(const f of pool){ if(pick.length>=progObjectif()) break; if(!used.has(f.surspe)||pool.filter(x=>!pick.includes(x)&&!used.has(x.surspe)).length===0){ pick.push(f); used.add(f.surspe); } }
+  for(const f of pool){ if(pick.length>=progObjectif()) break; if(!pick.includes(f)) pick.push(f); }
+  const ids=pick.map(f=>f.id);
+  state.prog={...P, days:{...days,[today]:ids}};
+  state.db.collection(COL.meta).doc("programme").set({days:{[today]:ids}},{merge:true}).catch(()=>{});
+  return pick;
+}
+function doneOn(day){ return state.fiches.filter(f=>f.verified_at && dkey(f.verified_at)===day).length; }
+function streak(){ const obj=progObjectif(); let n=0, d=new Date(); if(doneOn(dkey(d))<obj) d.setDate(d.getDate()-1);
+  while(doneOn(dkey(d))>=obj){ n++; d.setDate(d.getDate()-1); } return n; }
+function todayHtml(){
+  const list=todayList(); if(!list.length) return "";
+  const today=dkey(Date.now()), obj=progObjectif(), done=doneOn(today), st=streak();
+  const due=(()=>{ try{ const i=dueInfo(); return i.due.length+Math.min(i.newLeft,i.fresh.length); }catch{ return 0; } })();
+  return `<section class="today"><div class="th"><h2>Aujourd'hui : ${Math.min(done,obj)}/${obj} fiches bossées</h2><span class="streak">${st?`🔥 ${st} jour${st>1?"s":""} d'affilée`:"série à lancer"}</span></div>
+   <div class="bar"><i style="width:${Math.min(100,Math.round(100*done/obj))}%"></i></div>
+   <ol>${list.map(f=>`<li class="${(f.statut==="verifiee"||f.verified_at)?"ok":""}"><button data-id="${esc(f.id)}">${esc(f.nom)} <span style="color:var(--muted);font-size:.8rem">· ${esc(f.surspe||"")}</span></button></li>`).join("")}</ol>
+   <div class="tfoot"><span>Lis la fiche, puis « Vérifiée : l'ajouter à la révision ».${due?` Ensuite : <button class="linkbtn" id="revbtn2">${due} carte${due>1?"s":""} à réviser</button>`:""}</span>
+   <label>Objectif <select id="progobj">${[3,4,5,6,8,10].map(n=>`<option ${n===obj?"selected":""}>${n}</option>`).join("")}</select> /jour</label></div></section>`;
+}
+function appBadge(){ try{ const today=dkey(Date.now()); const left=Math.max(0,progObjectif()-doneOn(today)); let due=0; try{ const i=dueInfo(); due=i.due.length; }catch{}
+  const n=left+due; if(navigator.setAppBadge){ n?navigator.setAppBadge(n):navigator.clearAppBadge(); } }catch{} }
+document.addEventListener("change", e=>{ if(e.target.id==="progobj"){ const v=+e.target.value; state.prog={...(state.prog||{}),objectif:v}; const t=dkey(Date.now()); if(state.prog.days) delete state.prog.days[t];
+  state.db.collection(COL.meta).doc("programme").set({objectif:v, days:{[t]:firebase.firestore.FieldValue.delete()}},{merge:true}).catch(()=>{}); renderList(); } });
+
 function renderList(){
   const main = $("#main");
   if(!state.ready){ main.innerHTML = `<div class="empty"><h2>Chargement…</h2><p>Connexion à ton répertoire.</p></div>`; return; }
@@ -475,6 +525,7 @@ function renderList(){
     main.innerHTML = html; return;
   }
   const list = visible();
+  if(!state.filter && !state.fam) html += todayHtml();
   if(!state.fiches.length){
     html += `<div class="empty"><h2>Aucune fiche pour l'instant</h2><p>Tape le nom d'une entité croisée en stage ou sur un cas, avec si tu veux deux mots de contexte. La fiche (épidémio, clinique, imagerie, DD, pièges) est rédigée à partir du topo Radiopaedia et apparaît ici toute seule.</p><button class="btn primary" data-add="1">Ficher une première entité</button></div>`;
     main.innerHTML = html; return;
@@ -609,6 +660,7 @@ document.addEventListener("click", async e=>{
   if(t.id==="homebtn"){ goHome(); return; }
   if(t.dataset.sugok){ state.db.collection(COL.queue).doc(t.dataset.sugok).update({status:"pending"}).catch(()=>toast("Impossible.")); toast("Gamme demandée"); return; }
   if(t.dataset.sugno){ state.db.collection(COL.queue).doc(t.dataset.sugno).update({status:"ignored"}).catch(()=>toast("Impossible.")); return; }
+  if(t.id==="revbtn2"){ startReview(); window.scrollTo(0,0); return; }
   if(t.id==="revbtn"){ startReview(); window.scrollTo(0,0); return; }
   if(t.dataset.show){ state.sess.shown=true; renderReview(); return; }
   if(t.dataset.grade){ gradeCard(+t.dataset.grade); return; }
@@ -1012,7 +1064,7 @@ function dueInfo(){
   const fresh=pool.filter(x=>!state.srs[x.key] && (x.f.statut==="verifiee" || x.f.verified_at)).sort((a,b)=>String(b.f.verified_at||b.f.created_at||"").localeCompare(String(a.f.verified_at||a.f.created_at||""))||String(a.key).localeCompare(String(b.key)));
   return {pool, due, fresh, newLeft:Math.max(0,NEW_PER_DAY-newToday)};
 }
-function updateBadge(){
+function updateBadge(){ appBadge();
   const b=$("#revcount"); if(!b) return;
   if(!state.srsReady){ b.textContent=""; return; }
   const saveF=state.filter, saveFam=state.fam; state.filter=null; state.fam=null;
@@ -1157,6 +1209,7 @@ async function seedIfNeeded(db){
   db.collection(COL.fiches).onSnapshot(s=>{ state.fiches = s.docs.map(d=>({id:d.id,...d.data()})); state.ready=true;
     if(state.open && ED.fid===state.open && !ED.dirty && !ED.saveT){ const cur=state.fiches.find(x=>x.id===state.open); if(cur && (cur.perso_at||"")!==(ED.loaded||"") && !($("#ed")&&$("#ed").contains(document.activeElement))){ ED.fid=null; ED.hist=[]; } } if((state.mode==="review" && state.sess) || (state.open && !state.mode && $("#ed") && ED.fid===state.open && (ED.dirty || ED.saveT || $("#ed").contains(document.activeElement)))){ updateBadge(); renderChips(); } else render(); }, e=>{ console.error(e); state.ready=true; render(); toast("Lecture des fiches impossible : "+(e&&e.code||"erreur")); });
   db.collection(COL.queue).onSnapshot(s=>{ state.queue = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))); if(state.mode!=="review" && !(state.open && $("#ed") && (ED.dirty || ED.saveT || $("#ed").contains(document.activeElement)))) state.open ? renderFiche() : renderList(); }, ()=>{});
+  db.collection(COL.meta).doc("programme").onSnapshot(d=>{ state.prog=d.exists?d.data():{}; state.progReady=true; if(!state.open && !state.mode) renderList(); }, ()=>{ state.progReady=true; });
   db.collection(COL.srs).onSnapshot(s=>{ state.srs = Object.fromEntries(s.docs.map(d=>[d.id,d.data()])); state.srsReady=true; if(state.mode==="review" && !state.sess) renderReview(); updateBadge(); }, ()=>{ state.srsReady=true; });
   seedIfNeeded(db);
 })();
