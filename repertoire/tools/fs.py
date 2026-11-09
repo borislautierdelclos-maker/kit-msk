@@ -9,6 +9,7 @@ Usage :
   fs.py getimg <id> <out.webp>             (image stockée dans rep_imgs)
   fs.py putimg <fichier.jpg|.webp|.png>    -> stocke l'image dans rep_imgs, affiche son id
   fs.py updatefile <collection> <id> <file.json> (fusionne les champs du fichier)
+  fs.py next <collection> <n>              -> les n documents les plus anciens (created_at) : peu de lectures
 Collections : rep_fiches, rep_queue, rep_imgs, rep_meta
 """
 import sys, json, base64, urllib.request, urllib.parse
@@ -94,6 +95,12 @@ def main():
         b64 = d["data"].split(",", 1)[1]
         open(a[2], "wb").write(base64.b64decode(b64))
         print(a[2])
+    elif cmd == "next":
+        body = {"structuredQuery": {"from": [{"collectionId": a[1]}],
+                "orderBy": [{"field": {"fieldPath": "created_at"}, "direction": "ASCENDING"}],
+                "limit": int(a[2]) if len(a) > 2 else 10}}
+        r = req("POST", BASE + ":runQuery?key=" + KEY, body)
+        print(json.dumps([doc(x["document"]) for x in r if "document" in x], ensure_ascii=False))
     elif cmd == "putimg":
         import os, time, random, string
         raw = open(a[1], "rb").read()
