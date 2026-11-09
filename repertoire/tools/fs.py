@@ -9,6 +9,7 @@ Usage :
   fs.py getimg <id> <out.webp>             (image stockée dans rep_imgs)
   fs.py putimg <fichier.jpg|.webp|.png>    -> stocke l'image dans rep_imgs, affiche son id
   fs.py updatefile <collection> <id> <file.json> (fusionne les champs du fichier)
+  fs.py journal "<texte>"                  -> ajoute une ligne au journal (rep_meta/journal)
   fs.py next <collection> <n>              -> les n documents les plus anciens (created_at) : peu de lectures
 Collections : rep_fiches, rep_queue, rep_imgs, rep_meta
 """
@@ -95,6 +96,14 @@ def main():
         b64 = d["data"].split(",", 1)[1]
         open(a[2], "wb").write(base64.b64decode(b64))
         print(a[2])
+    elif cmd == "journal":
+        from datetime import datetime
+        name = BASE.split("/v1/")[1] + "/rep_meta/journal"
+        line = datetime.now().strftime("%Y-%m-%d %H:%M ") + a[1]
+        req("POST", BASE.rsplit("/documents", 1)[0] + "/documents:commit?key=" + KEY,
+            {"writes": [{"transform": {"document": name, "fieldTransforms": [
+                {"fieldPath": "lignes", "appendMissingElements": {"values": [enc(line)]}}]}}]})
+        print("ok")
     elif cmd == "next":
         body = {"structuredQuery": {"from": [{"collectionId": a[1]}],
                 "orderBy": [{"field": {"fieldPath": "created_at"}, "direction": "ASCENDING"}],
