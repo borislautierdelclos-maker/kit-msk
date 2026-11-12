@@ -573,7 +573,9 @@ const FIREBASE_CONFIG={apiKey:"AIzaSyD6XQRZYwReCAnvPU6ZfhjHwIXvRrgmScA",authDoma
 applyTheme();
 try{ const h=decodeURIComponent((location.hash||"").slice(1)); if(h) state.open=h; }catch{}
 function netState(){ $("#offline").hidden=navigator.onLine; } addEventListener("online",netState); addEventListener("offline",netState); netState();
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+if("serviceWorker" in navigator){ const hadCtl=!!navigator.serviceWorker.controller; let reloading=false;
+  navigator.serviceWorker.register("sw.js").then(reg=>{ const chk=()=>reg.update().catch(()=>{}); document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") chk(); }); setInterval(chk,30*60e3); }).catch(()=>{});
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(!hadCtl||reloading) return; reloading=true; location.reload(); }); }
 render();
 (function(){
   if(!window.firebase){ state.ready=true; render(); return; }

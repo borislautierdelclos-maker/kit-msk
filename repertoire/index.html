@@ -1227,7 +1227,9 @@ try{ const h=decodeURIComponent((location.hash||"").slice(1)); if(h==="reviser")
 render();
 function netState(){ const o=$("#offline"); if(o) o.hidden = navigator.onLine; }
 addEventListener("online",netState); addEventListener("offline",netState); netState();
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+if("serviceWorker" in navigator){ const hadCtl=!!navigator.serviceWorker.controller; let reloading=false;
+  navigator.serviceWorker.register("sw.js").then(reg=>{ const chk=()=>reg.update().catch(()=>{}); document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") chk(); }); setInterval(chk,30*60e3); }).catch(()=>{});
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(!hadCtl||reloading) return; reloading=true; try{edFlush();}catch(_){} location.reload(); }); }
 async function seedIfNeeded(db){
   try{
     const meta = await db.collection(COL.meta).doc("seed").get();
