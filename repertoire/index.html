@@ -280,6 +280,10 @@ mark{background:#ffe58a;color:#16202A;border-radius:3px;padding:0 1px}
 .card .ss{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .card .qq{font-family:var(--f-display);font-weight:700;font-size:1.18rem;line-height:1.3}
 .card .rr{border-top:1px dashed var(--line);padding-top:12px;font-size:1.02rem;line-height:1.45}
+.rr .w{cursor:pointer;border-radius:3px;-webkit-tap-highlight-color:transparent}
+.rr .w.prev{box-shadow:inset 0 -2px 0 #e07b1a}
+.rr .w.miss{background:#ffe58a;color:#16202A;box-shadow:none}
+.misshint{font-size:.78rem;color:var(--muted);margin-top:8px}.misshint i{font-style:normal;box-shadow:inset 0 -2px 0 #e07b1a}.misshint b{background:#ffe58a;color:#16202A;font-weight:400;border-radius:3px;padding:0 2px}
 .card .cimg{display:block;width:100%;max-height:52vh;object-fit:contain;background:#000;border-radius:10px;cursor:zoom-in}
 .card .tofiche{justify-self:start;border:0;background:none;color:var(--ink);font-weight:700;padding:0}
 .grades{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
@@ -1174,12 +1178,28 @@ function renderReview(){
       <div class="ss" style="color:${color}">${esc(x.f.surspe||"")}${c.type==="image"||!S.shown?"":` · ${esc(x.f.nom)}`}</div>
       <div class="qq">${fmtMulti(c.q)}</div>
       ${cardImg(x)}
-      ${S.shown?`<div class="rr">${fmtMulti(c.r)}</div><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="tofiche" data-tofiche="${esc(x.f.id)}">Ouvrir la fiche « ${esc(x.f.nom)} » ›</button>${S.confirmCut?`<button class="linkbtn" data-cut="2" style="color:var(--danger);font-weight:700">Confirmer la suppression</button>`:`<button class="linkbtn" data-cut="1" style="color:var(--muted)">Supprimer cette carte</button>`}</div>`:""}
+      ${S.shown?`<div class="rr">${fmtMulti(c.r)}</div><div class="misshint">Touche les mots que tu n'avais pas trouvés : ils passent en <b>jaune</b>.${cur&&cur.miss&&cur.miss.length&&cur.missH===hashStr(c.r)?` <i>Souligné orange</i> : manqué la fois d'avant.`:""}</div><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="tofiche" data-tofiche="${esc(x.f.id)}">Ouvrir la fiche « ${esc(x.f.nom)} » ›</button>${S.confirmCut?`<button class="linkbtn" data-cut="2" style="color:var(--danger);font-weight:700">Confirmer la suppression</button>`:`<button class="linkbtn" data-cut="1" style="color:var(--muted)">Supprimer cette carte</button>`}</div>`:""}
     </div>
     ${S.shown?`<div class="grades">${grades}</div>`:`<button class="btn primary showbtn" data-show="1">Voir la réponse</button>`}
   </div>`;
   hydrateImgs();
+  if(S.shown) wordify(cur, c);
 }
+function hashStr(t){ let h=7; for(const ch of String(t||"")) h=(h*31+ch.charCodeAt(0))>>>0; return h; }
+function wordify(cur, c){
+  const rr=document.querySelector(".card .rr"); if(!rr) return;
+  const S=state.sess; if(!S.miss) S.miss=new Set();
+  const prev=new Set(cur&&cur.missH===hashStr(c.r)?arr(cur.miss):[]);
+  const walker=document.createTreeWalker(rr,NodeFilter.SHOW_TEXT), nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+  let i=0;
+  nodes.forEach(n=>{ const parts=n.nodeValue.split(/(\s+)/); if(parts.length<=1&&!n.nodeValue.trim()) return;
+    const frag=document.createDocumentFragment();
+    parts.forEach(pt=>{ if(!pt) return; if(/^\s+$/.test(pt)){ frag.appendChild(document.createTextNode(pt)); return; }
+      const sp=document.createElement("span"); sp.className="w"+(prev.has(i)?" prev":"")+(S.miss.has(i)?" miss":""); sp.dataset.w=i++; sp.textContent=pt; frag.appendChild(sp); });
+    n.parentNode.replaceChild(frag,n); });
+}
+document.addEventListener("click", e=>{ const w=e.target.closest&&e.target.closest(".rr .w"); if(!w||state.mode!=="review"||!state.sess) return;
+  const i=+w.dataset.w, S=state.sess; if(!S.miss) S.miss=new Set(); if(S.miss.has(i)) S.miss.delete(i); else S.miss.add(i); w.classList.toggle("miss"); });
 function cutCard(f, c){
   const key=f.id+"__"+(c.id||"");
   const cartes=arr(f.cartes).filter(x=>x!==c && !(c.id && x.id===c.id));
@@ -1191,11 +1211,11 @@ function cutCard(f, c){
 function gradeCard(g){
   const S=state.sess; if(!S) return; const x=S.items[S.idx]; if(!x) return;
   const now=Date.now(); const n=nextState(state.srs[x.key],g,now);
-  const rec={fiche_id:x.f.id, card:x.c.id||"", s:n.s, d:n.d, last:n.last, due:n.due, reps:n.reps, lapses:n.lapses, first:n.first};
+  const rec={fiche_id:x.f.id, card:x.c.id||"", s:n.s, d:n.d, last:n.last, due:n.due, reps:n.reps, lapses:n.lapses, first:n.first, miss:[...(S.miss||[])].sort((a,b)=>a-b), missH:hashStr(x.c.r)};
   state.srs[x.key]=rec;
   state.db.collection(COL.srs).doc(x.key).set(rec).catch(()=>toast("Progression non enregistrée."));
   S.done++; if(n.soon){ if(g===1) S.again++; S.items.splice(Math.min(S.items.length,S.idx+(g===1?4:8)),0,x); }
-  S.idx++; S.shown=false; S.confirmCut=false; renderReview(); updateBadge(); window.scrollTo(0,0);
+  S.idx++; S.shown=false; S.confirmCut=false; S.miss=new Set(); renderReview(); updateBadge(); window.scrollTo(0,0);
 }
 document.addEventListener("keydown", e=>{
   if(state.mode!=="review"||!state.sess||/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")) return;
