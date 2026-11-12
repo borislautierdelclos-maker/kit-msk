@@ -512,6 +512,16 @@ function todayList(){
   state.db.collection(COL.meta).doc("programme").set({days:{[today]:ids}},{merge:true}).catch(()=>{});
   return pick;
 }
+function randomFiche(){
+  const verified=f=>f.statut==="verifiee"||f.verified_at;
+  const pool=state.fiches.filter(f=>!verified(f) && (f.type==="entite"||f.type==="signe"||f.type==="comparatif") && f.id!==state.open);
+  if(!pool.length){ toast("Toutes les fiches sont déjà bossées."); return; }
+  let last=null; try{ last=localStorage.getItem("lastRandSurspe"); }catch{}
+  const other=pool.filter(f=>f.surspe!==last); const src=other.length?other:pool;
+  const f=src[Math.floor(Math.random()*src.length)];
+  try{ localStorage.setItem("lastRandSurspe", f.surspe||""); }catch{}
+  state.mode=null; state.sess=null; state.sessFiche=null; state.open=f.id; render(); window.scrollTo(0,0);
+}
 function doneOn(day){ return state.fiches.filter(f=>f.verified_at && dkey(f.verified_at)===day).length; }
 function streak(){ const obj=progObjectif(); let n=0, d=new Date(); if(doneOn(dkey(d))<obj) d.setDate(d.getDate()-1);
   while(doneOn(dkey(d))>=obj){ n++; d.setDate(d.getDate()-1); } return n; }
@@ -522,7 +532,7 @@ function todayHtml(){
   return `<section class="today"><div class="th"><h2>Aujourd'hui : ${Math.min(done,obj)}/${obj} fiches bossées</h2><span class="streak">${st?`🔥 ${st} jour${st>1?"s":""} d'affilée`:"série à lancer"}</span></div>
    <div class="bar"><i style="width:${Math.min(100,Math.round(100*done/obj))}%"></i></div>
    <ol>${list.map(f=>`<li class="${(f.statut==="verifiee"||f.verified_at)?"ok":""}"><button data-id="${esc(f.id)}">${esc(f.nom)} <span style="color:var(--muted);font-size:.8rem">· ${esc(f.surspe||"")}</span></button></li>`).join("")}</ol>
-   <div class="tfoot"><span>Lis la fiche, puis « Vérifiée : l'ajouter à la révision ».${due?` Ensuite : <button class="linkbtn" id="revbtn2">${due} carte${due>1?"s":""} à réviser</button>`:""}</span>
+   <div class="tfoot"><span>Lis la fiche, puis « Me tester » : elle passe toute seule en révision. <button class="linkbtn" data-rand="1">🎲 Fiche au hasard</button>.${due?` Ensuite : <button class="linkbtn" id="revbtn2">${due} carte${due>1?"s":""} à réviser</button>`:""}</span>
    <label>Objectif <select id="progobj">${[3,4,5,6,8,10].map(n=>`<option ${n===obj?"selected":""}>${n}</option>`).join("")}</select> /jour</label></div></section>`;
 }
 function pipeHtml(){
@@ -636,7 +646,7 @@ function renderFiche(){
       <div class="actions">
         <label class="btn" for="edimg" style="cursor:pointer">Ajouter une image</label><input id="edimg" type="file" accept="image/*" multiple hidden>
         <button class="btn ${f.statut==="verifiee"?"":"primary"}" data-verify="1">${f.statut==="verifiee"?"Repasser à vérifier":"Vérifiée : l'ajouter à la révision"}</button>
-        ${arr(f.cartes).length?`<button class="btn primary" data-testfiche="1">Me tester sur cette fiche (${arr(f.cartes).length})</button>`:""}
+        ${(f.statut!=="verifiee"&&!f.verified_at)?`<button class="btn" data-rand="1">🎲 Une autre au hasard</button> `:""}${arr(f.cartes).length?`<button class="btn primary" data-testfiche="1">Me tester sur cette fiche (${arr(f.cartes).length})</button>`:""}
         ${!arr(f.cartes).length?`<button class="btn" data-gencards="1" ${pendingCards?"disabled":""}>${pendingCards?"Cartes en préparation…":"Créer les cartes de révision"}</button>`:""}
         <button class="btn" data-rev="1" ${pendingRev?"disabled":""}>${pendingRev?"Correction en cours…":"Demander une correction"}</button>
         ${state.confirmDel?`<button class="btn dangerfill" data-del="2">Confirmer la suppression</button><button class="btn" data-del="0">Annuler</button>`:`<button class="btn danger" data-del="1">Supprimer</button>`}
@@ -693,6 +703,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.sugok){ state.db.collection(COL.queue).doc(t.dataset.sugok).update({status:"pending"}).catch(()=>toast("Impossible.")); toast("Gamme demandée"); return; }
   if(t.dataset.sugno){ state.db.collection(COL.queue).doc(t.dataset.sugno).update({status:"ignored"}).catch(()=>toast("Impossible.")); return; }
   if(t.id==="pipepause"){ const on=!(state.pipe&&state.pipe.pause===true); state.db.collection(COL.meta).doc("pipeline").set({pause:on},{merge:true}).then(()=>toast(on?"Rédaction mise en pause (la session en cours se termine)":"Rédaction relancée")).catch(()=>toast("Impossible.")); return; }
+  if(t.dataset.rand){ edFlush&&edFlush(); randomFiche(); return; }
   if(t.id==="revbtn2"){ startReview(); window.scrollTo(0,0); return; }
   if(t.id==="revbtn"){ startReview(); window.scrollTo(0,0); return; }
   if(t.dataset.show){ state.sess.shown=true; renderReview(); return; }
@@ -1140,7 +1151,8 @@ function renderReview(){
   const lotPending = state.queue.some(x=>x.type==="cartes_lot"&&x.status!=="done");
   const lot = withoutCards ? `<p style="margin:14px 0 0;color:var(--muted);font-size:.9rem">${withoutCards} fiche${withoutCards>1?"s":""} sans cartes. ${lotPending?"Génération en cours…":`<button class="linkbtn" data-lotgo="1">Créer leurs cartes</button>`}</p>` : "";
   if(state.sessFiche && S.idx>=S.items.length && S.fiche){
-    main.innerHTML = back + `<div class="empty"><h2>Fiche « ${esc(S.fiche.nom)} » testée</h2><p>${S.done} réponse${S.done>1?"s":""}${S.again?`, dont ${S.again} à revoir`:""}. Les cartes reviendront d'elles-mêmes dans « Réviser » au bon moment.</p><button class="btn primary" data-tofiche="${esc(S.fiche.id)}">Retour à la fiche</button> <button class="btn" data-again="1">Réviser le reste du jour</button></div>`;
+    const fv=S.fiche; if(S.done && !S.autoVer && fv.statut!=="verifiee" && !fv.verified_at){ S.autoVer=true; const at=new Date().toISOString(); fv.statut="verifiee"; fv.verified_at=at; state.db.collection(COL.fiches).doc(fv.id).update({statut:"verifiee",verified_at:at}).catch(()=>toast("Ajout à la révision non enregistré.")); }
+    main.innerHTML = back + `<div class="empty"><h2>Fiche « ${esc(S.fiche.nom)} » testée</h2><p>${S.done} réponse${S.done>1?"s":""}${S.again?`, dont ${S.again} à revoir`:""}. ${S.autoVer?"Fiche ajoutée à ta révision : ":""}Les cartes reviendront d'elles-mêmes dans « Réviser » au bon moment.</p><button class="btn primary" data-rand="1">🎲 Fiche suivante au hasard</button> <button class="btn" data-tofiche="${esc(S.fiche.id)}">Retour à la fiche</button> <button class="btn" data-again="1">Réviser le reste du jour</button></div>`;
     return;
   }
   if(!S.items.length || S.idx>=S.items.length){
