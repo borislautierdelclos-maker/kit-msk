@@ -77,6 +77,11 @@ button{cursor:pointer}
 .qitem.err{border-color:var(--danger);border-style:solid}
 .qitem.err .qs{color:var(--danger)}
 .qitem .qmsg{display:block;font-weight:400;color:var(--muted);font-size:.82rem}
+.qbox{display:block;background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);overflow:hidden}
+.qhead{display:flex;width:100%;align-items:center;gap:8px;border:0;background:none;padding:10px 12px;text-align:left;font-size:.88rem;color:var(--fg);cursor:pointer}
+.qhead .qn{flex:1}.qhead .qs{font-family:var(--f-mono);font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.qgrp{border-top:1px solid var(--line);padding:8px 12px}.qgt{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.qrest{font-size:.82rem;color:var(--muted);line-height:1.45}.qbox .qitem{border-radius:0;border-width:1px 0 0;border-style:solid}
 .pulse{width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none;animation:p 1.4s ease-in-out infinite}
 @keyframes p{50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.pulse{animation:none}}
@@ -455,8 +460,16 @@ function rowHtml(f){ return `<button class="row" data-id="${esc(f.id)}"><span cl
 function score(f,q){ const n=norm(f.nom); if(n===q) return 100; if(n.startsWith(q)) return 80; if(n.includes(q)) return 60;
   if([f.nom_en,...arr(f.synonymes)].some(x=>norm(x).includes(q))) return 50; if(norm(f.quand).includes(q)) return 30;
   if(norm([f.contenu_md,f.cat,f.piege].join(" ")).includes(q)) return 10; return 0; }
+let qOpen=false; try{ qOpen=localStorage.getItem("q_qOpen")==="1"; }catch{}
 function queueHtml(){ const it=state.queue.filter(x=>x.app==="quotidien"&&!["done","suggestion","ignored"].includes(x.status)); if(!it.length) return "";
-  return `<div class="queue">`+it.map(x=>x.status==="error"?`<div class="qitem err"><span class="qn">${esc(x.nom)}<span class="qmsg">${esc(x.message||"Échec")}</span></span><button class="linkbtn" data-retry="${esc(x.id)}">Relancer</button><button class="linkbtn" data-drop="${esc(x.id)}">Retirer</button></div>`:`<div class="qitem"><span class="pulse"></span><span class="qn">${x.type==="revise"?"Correction · ":""}${esc(x.nom)}</span><span class="qs">${x.status==="processing"?"rédaction en cours":"en file"}</span></div>`).join("")+`</div>`; }
+  const errs=it.filter(x=>x.status==="error"), ok=it.filter(x=>x.status!=="error"), run=ok.filter(x=>x.status==="processing");
+  const head=`<button class="qhead" data-qtoggle="1" aria-expanded="${qOpen}"><span class="pulse"></span><span class="qn">Rédaction en arrière-plan : <b>${it.length}</b> tâche${it.length>1?"s":""}${run.length?` · ${run.length} en cours`:""}${errs.length?` · <span style="color:var(--danger)">${errs.length} en erreur</span>`:""}</span><span class="qs">${qOpen?"replier ▴":"détails ▾"}</span></button>`;
+  let body="";
+  if(qOpen||errs.length) body+=errs.map(x=>`<div class="qitem err"><span class="qn">${esc(x.nom)}<span class="qmsg">${esc(x.message||"Échec")}</span></span><button class="linkbtn" data-retry="${esc(x.id)}">Relancer</button><button class="linkbtn" data-drop="${esc(x.id)}">Retirer</button></div>`).join("");
+  if(qOpen){ const grp=[["Nouvelles fiches",ok.filter(x=>x.type!=="revise")],["Corrections de fiches existantes",ok.filter(x=>x.type==="revise")]].filter(g=>g[1].length);
+    body+=grp.map(([l,g])=>{ const now=g.filter(x=>x.status==="processing"), rest=g.filter(x=>x.status!=="processing");
+      return `<div class="qgrp"><div class="qgt">${l} <b>${g.length}</b></div>${now.map(x=>`<div class="qitem" style="border:0;padding:3px 0"><span class="pulse"></span><span class="qn">${esc(x.nom)}</span><span class="qs">en cours</span></div>`).join("")}${rest.length?`<div class="qrest">${rest.map(x=>esc(x.nom)).join(" · ")}</div>`:""}</div>`; }).join(""); }
+  return `<div class="queue"><div class="qbox">${head}${body}</div></div>`; }
 function renderList(){
   const main=$("#main");
   if(!state.ready){ main.innerHTML=`<div class="empty"><h2>Chargement…</h2></div>`; return; }
@@ -538,6 +551,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.t!==undefined){ state.filter=t.dataset.t||null; state.org=null; state.open=null; render(); return; }
   if(t.dataset.o!==undefined){ state.org=state.org===t.dataset.o?null:t.dataset.o; render(); return; }
   if(t.dataset.id){ openFiche(t.dataset.id); return; }
+  if(t.dataset.qtoggle){ qOpen=!qOpen; try{ localStorage.setItem("q_qOpen", qOpen?"1":""); }catch{} renderList(); return; }
   if(t.dataset.retry){ state.db.collection(COL.queue).doc(t.dataset.retry).update({status:"pending",message:""}); return; }
   if(t.dataset.drop){ state.db.collection(COL.queue).doc(t.dataset.drop).delete(); return; }
   const f=state.fiches.find(x=>x.id===state.open); if(!f) return;
